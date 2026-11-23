@@ -100,29 +100,33 @@ func _style_lorencia_special_meshes(node: Node) -> void:
 			for i in range(mi.mesh.get_surface_count()):
 				var cur := mi.get_surface_override_material(i) as ShaderMaterial
 				if cur:
+					var has_tex := cur.get_shader_parameter("albedo_texture") != null
 					var fm := ShaderMaterial.new()
 					fm.shader = SWAYING_FOLIAGE_SHADER
 					fm.set_shader_parameter("albedo_color", cur.get_shader_parameter("albedo_color"))
-					fm.set_shader_parameter("use_texture", cur.get_shader_parameter("use_texture"))
-					fm.set_shader_parameter("albedo_texture", cur.get_shader_parameter("albedo_texture"))
+					fm.set_shader_parameter("use_texture", has_tex)
+					if has_tex:
+						fm.set_shader_parameter("albedo_texture", cur.get_shader_parameter("albedo_texture"))
 					mi.set_surface_override_material(i, fm)
 		elif mi.mesh:
-			# Point 2: Matte 80%-unshaded painterly shader with baked vertex top-edge highlights & crevice AO
+			# Point 2: Matte soft-lit painterly shader with baked vertex top-edge highlights & crevice AO
 			for i in range(mi.mesh.get_surface_count()):
 				var cur := mi.get_surface_override_material(i) as ShaderMaterial
 				if cur:
+					var has_tex := cur.get_shader_parameter("albedo_texture") != null
 					var am := ShaderMaterial.new()
 					am.shader = ARCANE_TOWN_SHADER
 					am.set_shader_parameter("albedo_color", cur.get_shader_parameter("albedo_color"))
-					am.set_shader_parameter("use_texture", cur.get_shader_parameter("use_texture"))
-					am.set_shader_parameter("albedo_texture", cur.get_shader_parameter("albedo_texture"))
-					am.set_shader_parameter("shadow_color", Color(0.76, 0.74, 0.84))
+					am.set_shader_parameter("use_texture", has_tex)
+					if has_tex:
+						am.set_shader_parameter("albedo_texture", cur.get_shader_parameter("albedo_texture"))
+					am.set_shader_parameter("shadow_color", Color(0.54, 0.50, 0.62))
 					mi.set_surface_override_material(i, am)
 	for c in node.get_children():
 		_style_lorencia_special_meshes(c)
 
 func _build_lorencia_colliders() -> void:
-	# 1. Central Sunspire Fountain at (0, 0, 11.5)
+	# 1. Central Runeterra Fountain at (0, 0, 11.5)
 	var sb_f := StaticBody3D.new()
 	sb_f.position = Vector3(0, 1.0, 11.5)
 	var cs_f := CollisionShape3D.new()
@@ -133,10 +137,12 @@ func _build_lorencia_colliders() -> void:
 	sb_f.add_child(cs_f)
 	add_child(sb_f)
 
-	# 2. Grand Town Hall & Clocktower at (0, 0, -7.2) (twin bypass lanes on West x=-10.5 and East x=+10.5!)
-	_add_collision_box(Vector3(17.8, 6.0, 7.8), Vector3(0.0, 3.0, -7.2))
+	# 2. West Aqueduct Canal Embankments (x = -13.2, with open bridges at z = 4.5 and z = 16.5!)
+	_add_collision_box(Vector3(3.6, 2.5, 5.0), Vector3(-13.2, 1.0, -0.8))
+	_add_collision_box(Vector3(3.6, 2.5, 6.2), Vector3(-13.2, 1.0, 10.5))
+	_add_collision_box(Vector3(3.6, 2.5, 6.2), Vector3(-13.2, 1.0, 22.5))
 
-	# 3. Lumen's Half-Timbered Tavern Bar Counter (-21.5, 0, 3.8)
+	# 3. Lumen's Tavern Bar Counter (-21.5, 0, 3.8)
 	_add_collision_box(Vector3(5.5, 1.4, 1.1), Vector3(-21.7, 0.7, 2.7))
 	_add_collision_box(Vector3(1.1, 1.4, 3.4), Vector3(-23.9, 0.7, 4.5))
 
@@ -144,13 +150,16 @@ func _build_lorencia_colliders() -> void:
 	_add_collision_box(Vector3(3.0, 5.0, 4.4), Vector3(-24.7, 2.5, 16.8))
 	_add_collision_box(Vector3(1.5, 1.4, 1.7), Vector3(-17.8, 0.7, 16.5))
 
-	# 5. East 6-Sail Windmill Tower (+23.2, 0, 16.8) & Apothecary Counter (+18.2, 0, 5.2)
-	_add_collision_box(Vector3(5.4, 6.0, 5.4), Vector3(23.2, 3.0, 16.8))
-	_add_collision_box(Vector3(1.3, 1.4, 5.8), Vector3(18.2, 0.7, 5.2))
+	# 5. East Domed Vault Rotunda (+30.8, 0, 17.5), 6-Sail Windmill (+25.5, 0, 10.2) & Apothecary Counter (+18.2, 0, 4.2)
+	_add_collision_box(Vector3(11.5, 6.0, 11.5), Vector3(30.8, 3.0, 17.5))
+	_add_collision_box(Vector3(5.4, 6.0, 5.4), Vector3(25.5, 3.0, 10.2))
+	_add_collision_box(Vector3(1.3, 1.4, 6.0), Vector3(18.2, 0.7, 4.2))
 
-	# 6. North Village Bridge Side Railings (x = ±3.45, z = -12.5 to -20.5)
-	_add_collision_box(Vector3(0.7, 2.0, 8.4), Vector3(-3.45, 1.0, -16.5))
-	_add_collision_box(Vector3(0.7, 2.0, 8.4), Vector3(3.45, 1.0, -16.5))
+	# 6. North Twin-Pylon Gatehouse Walls & 7.2m-Wide Viaduct Bridge Railings (leaving 6.8m clear passage!)
+	_add_collision_box(Vector3(24.0, 5.0, 2.6), Vector3(-18.5, 2.5, -3.2))
+	_add_collision_box(Vector3(24.0, 5.0, 2.6), Vector3(18.5, 2.5, -3.2))
+	_add_collision_box(Vector3(0.7, 2.0, 11.2), Vector3(-3.65, 1.0, -9.0))
+	_add_collision_box(Vector3(0.7, 2.0, 11.2), Vector3(3.65, 1.0, -9.0))
 
 	# Outer West, East & South City Boundaries
 	_add_collision_box(Vector3(2.5, 6.0, 38.0), Vector3(-29.0, 3.0, 13.0))
@@ -182,23 +191,23 @@ func _build_lorencia_lights_and_signs() -> void:
 		_brazier_lights.append(ol)
 
 	_add_landmark_sign(
-		"★ HANZO'S ARTISAN FORGE & FOUNDRY ★\nPress [F] at the Anvil to Upgrade Gear (+0 → +15)",
-		Vector3(-18.5, 4.4, 16.5),
+		"★ HANZO'S BLACKSMITH FORGE ★\nPress [F] at the Anvil to Upgrade Gear (+0 → +15)",
+		Vector3(-17.8, 4.5, 16.5),
 		Color(1.0, 0.86, 0.38)
 	)
 	_add_landmark_sign(
-		"★ LUMEN'S CANAL-SIDE LORENCIA BAR ★\n(West Canal Terrace)",
-		Vector3(-21.5, 4.85, 1.2),
+		"★ LUMEN'S LORENCIA TAVERN BAR ★\n(West Canal Terrace)",
+		Vector3(-21.5, 3.8, 2.5),
 		Color(0.98, 0.82, 0.52)
 	)
 	_add_landmark_sign(
 		"★ HIGH-ARCANE APOTHECARY & VAULT ROTUNDA ★\n(East Merchant Quarter)",
-		Vector3(21.5, 4.85, 9.5),
+		Vector3(18.5, 3.8, 9.5),
 		Color(0.72, 0.92, 1.0)
 	)
 	_add_landmark_sign(
-		"▲ NORTH TRIUMPHAL VIADUCT — RIFT OUTSKIRTS & BOSS COLOSSEUM ▲\n(Combat & Run Loot Risk Beyond Bridge)",
-		Vector3(0.0, 6.4, -3.2),
+		"▲ NORTH VIADUCT BRIDGE — RIFT OUTSKIRTS & BOSS COLOSSEUM ▲\n(Combat & Run Loot Risk Beyond Gate)",
+		Vector3(0.0, 5.2, -3.2),
 		Color(1.0, 0.82, 0.46)
 	)
 
@@ -261,8 +270,8 @@ func _add_landmark_sign(txt: String, pos: Vector3, col: Color) -> void:
 	lbl.text = txt
 	lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	lbl.no_depth_test = true
-	lbl.font_size = 26
-	lbl.outline_size = 8
+	lbl.font_size = 34
+	lbl.outline_size = 9
 	lbl.modulate = col
 	lbl.position = pos
 	add_child(lbl)
@@ -324,7 +333,7 @@ func _process(delta: float) -> void:
 		npc.update_animation(delta, 0.0)
 	if _crystal_gem:
 		_crystal_gem.rotation.y += delta * 0.65
-		_crystal_gem.position.y = 4.15 + sin(_time * 2.2) * 0.12
+		_crystal_gem.position.y = 4.35 + sin(_time * 2.2) * 0.12
 	for cl in _clouds:
 		cl.position.x += delta * 0.45
 		if cl.position.x > 42.0:

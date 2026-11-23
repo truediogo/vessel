@@ -3,7 +3,7 @@ render_mode cull_disabled, depth_draw_opaque, specular_disabled;
 
 // Point 5 of the League of Legends Godot Pipeline:
 // Gently swaying painterly foliage with baked top-crown highlights, dark inner-bough crevices,
-// and soft unshaded-dominant matte shading.
+// and real matte directional lighting (no self-emission washout).
 
 uniform sampler2D albedo_texture : source_color, filter_linear_mipmap, repeat_enable;
 uniform bool use_texture = true;
@@ -15,7 +15,6 @@ varying vec3 v_baked_paint;
 
 void vertex() {
 	vec3 world_p = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	// Gentle organic wind sway on upper foliage boughs
 	float height_mask = clamp((world_p.y - 0.6) / 4.5, 0.0, 1.0);
 	float wave_x = sin(TIME * sway_speed + world_p.x * 0.55 + world_p.z * 0.45);
 	float wave_z = cos(TIME * (sway_speed * 0.85) + world_p.z * 0.60 - world_p.x * 0.35);
@@ -29,19 +28,23 @@ void fragment() {
 	if (use_texture) {
 		col *= texture(albedo_texture, UV).rgb;
 	}
-	col *= v_baked_paint;
+	col *= mix(vec3(1.0), v_baked_paint, 0.65);
 	ALBEDO = col;
-	ROUGHNESS = 1.0;
+	ROUGHNESS = 0.92;
 	METALLIC = 0.0;
 	SPECULAR = 0.0;
-	EMISSION = col * 0.74;
+	EMISSION = vec3(0.0);
 }
 
 void light() {
 	if (LIGHT_IS_DIRECTIONAL) {
 		float ndotl = max(0.0, dot(NORMAL, LIGHT)) * ATTENUATION;
-		float soft_lit = smoothstep(0.05, 0.50, ndotl);
-		vec3 ramp = mix(vec3(0.72, 0.76, 0.82), vec3(1.05, 1.02, 0.94), soft_lit);
-		DIFFUSE_LIGHT += ALBEDO * (LIGHT_COLOR / PI) * ramp * 0.32;
+		float soft_lit = smoothstep(0.06, 0.35, ndotl);
+		vec3 ramp = mix(vec3(0.52, 0.56, 0.64), vec3(1.02, 0.98, 0.88), soft_lit);
+		DIFFUSE_LIGHT += ALBEDO * (LIGHT_COLOR / PI) * ramp * 0.95;
+	} else {
+		float nl = max(0.0, dot(NORMAL, LIGHT));
+		float local_glow = smoothstep(0.0, 0.45, nl) * ATTENUATION;
+		DIFFUSE_LIGHT += ALBEDO * (LIGHT_COLOR / PI) * local_glow * 0.35;
 	}
 }
