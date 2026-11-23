@@ -7,19 +7,17 @@ import bmesh
 import mathutils
 
 # ═══════════════════════════════════════════════════════════════════════════
-# LEAGUE OF LEGENDS / ARCANE & LORENCIA EXPANDED 5-DISTRICT FANTASY CITY (v8)
-# Built in Blender 5.3.0 combining:
-# 1. User's seamless hand-painted LoL mossy stone tiles (`T_LoL_Mossy_Flagstones.png`)
-#    across strictly disjoint, non-overlapping plazas & roads (zero Z-fighting!)
-# 2. Seamless Summoner's Rift mossy meadow & golden-earth terrain (`T_LoL_Rift_Terrain.png`)
-#    at y = -0.14 (14cm clear of y = 0.00 town tiles -> zero divider lines!)
-# 3. Weathered Chiseled-Stone League / Arcane Guildhalls, Domed Rotundas, 6-Sail Windmill,
-#    Central Runeterra Chalice Fountain, West Aqueduct Canal & Twin Footbridges,
-#    Staggered Chiseled Rift Border Stones & Rock Ledges (NO flat white stucco boxes!)
-# 4. 18 Wrought-Iron Spiral Streetlamps with Hanging 3.5m Crimson-Gold-Cobalt
-#    Arcane/LoL Heraldic Banners (`Lorencia_Banners`) + Rope-Wrapped Timber Festoon Lanterns
-# 5. Smooth-Shaded Multi-Lobe Oak Trees, Tapered Cypresses & Flowering Shrubs with
-#    Blender-baked top-edge highlights & crevice AO in COLOR_0
+# LEAGUE OF LEGENDS / SUMMONER'S RIFT & SPIRIT BLOSSOM CITY (v9.2)
+# - Authentic Summoner's Rift Layered Pine / Conifer Trees (`add_lol_rift_pine_tree`)
+#   with wide concave-flared bough skirts, 6-7 bold chunky pointed leaf-frond prongs
+#   per tier, deep viridian-teal under-tier shadow bands, hooked windswept apexes,
+#   and flanking sub-spires (`Captura de Tela 2026-11-23 às 19.03.45.png` & `image.png`).
+# - Authentic Riot Games / Devoted Studios Spirit Blossom & Broadleaf Trees
+#   (`add_lol_handpainted_canopy_tree` + `add_lol_billowing_canopy_dome`) with
+#   rounded billowing multi-ring scalloped canopy clouds (zero sharp cone spikes!),
+#   S-curved trunks, and arched surface root tendrils (`image-2.png`).
+# - Smooth gouache Summoner's Rift meadow grass (`tile_scale = 0.065`), 3D hand-painted
+#   grass-blade tuft clusters, and moss-capped runic rock monoliths (`image.png`).
 # ═══════════════════════════════════════════════════════════════════════════
 
 PROJECT_DIR = "/Users/diogo.silva/OpenBot/Agents/agent-0f47a086-7b1c-416a-86ce-7cb8de846218/project-vessel"
@@ -71,7 +69,7 @@ def add_chiseled_block(bm_body, bm_edge_hi, gx, gy, gz, sx, sy, sz, rot_y_deg=0.
     add_box(bm_edge_hi, gx, gy + body_h, gz, sx * 0.98, cap_h, sz * 0.98, rot_y_deg=rot_y_deg, taper_top=bevel_inset, tile_scale=tile_scale)
 
 
-def add_staggered_rift_border_stones(bm_body, bm_edge_hi, x0, z0, x1, z1, step=1.55, seed=42):
+def add_staggered_rift_border_stones(bm_body, bm_edge_hi, x0, z0, x1, z1, step=1.55, seed=42, bm_fol_lit=None, bm_fol_shade=None):
     rng = random.Random(seed)
     dist = math.hypot(x1 - x0, z1 - z0)
     count = max(2, int(round(dist / step)))
@@ -85,22 +83,97 @@ def add_staggered_rift_border_stones(bm_body, bm_edge_hi, x0, z0, x1, z1, step=1
         h = rng.uniform(0.14, 0.26)
         rot = base_ang + rng.uniform(-16.0, 16.0)
         add_chiseled_block(bm_body, bm_edge_hi, cx, -0.02, cz, w, h, d, rot_y_deg=rot)
+        if bm_fol_lit is not None and bm_fol_shade is not None and (i % 2 == 0):
+            gx_t = cx + rng.uniform(-0.45, 0.45)
+            gz_t = cz + rng.uniform(-0.45, 0.45)
+            add_lol_grass_tuft_cluster(bm_fol_lit, bm_fol_shade, gx_t, -0.02, gz_t, scale=0.85, n_blades=6, seed=seed + i * 7)
 
 
-def add_chiseled_rift_rock_ledge(bm_rock_dark, bm_rock_top, gx, gy, gz, rad_x, rad_z, height, rot_y_deg=0.0, seed=99):
+def add_lol_grass_tuft_cluster(bm_fol_lit, bm_fol_shade, gx, gy, gz, scale=1.0, n_blades=7, seed=303):
+    """
+    3D Hand-Painted League of Legends Grass-Blade Tuft Cluster:
+    Creates `n_blades` broad, curved, tapering lance-shaped 3D grass fronds flaring outward
+    with dark viridian-teal bases (`UV.v = 0.15`) and warm chartreuse tips (`UV.v = 0.92`).
+    """
     rng = random.Random(seed)
-    segs = 7
+    uv_lit = bm_fol_lit.loops.layers.uv.active or bm_fol_lit.loops.layers.uv.new("UVMap")
+    uv_shd = bm_fol_shade.loops.layers.uv.active or bm_fol_shade.loops.layers.uv.new("UVMap")
+
+    new_lit_faces = []
+    new_shd_faces = []
+
+    for b_i in range(n_blades):
+        ang = (float(b_i) / float(n_blades)) * 2.0 * math.pi + rng.uniform(-0.26, 0.26)
+        ca, sa = math.cos(ang), math.sin(ang)
+        px, pz = -sa, ca
+
+        r_off = rng.uniform(0.05, 0.24) * scale
+        bx0 = gx + ca * r_off
+        bz0 = gz + sa * r_off
+        by0 = gy
+
+        b_h = rng.uniform(0.42, 0.78) * scale
+        b_w = rng.uniform(0.11, 0.17) * scale
+        arch = rng.uniform(0.26, 0.52) * scale
+
+        bm_target = bm_fol_lit if (b_i % 3 != 0) else bm_fol_shade
+        uv_layer = uv_lit if (b_i % 3 != 0) else uv_shd
+        face_list = new_lit_faces if (b_i % 3 != 0) else new_shd_faces
+
+        v_bl = bm_target.verts.new(gpos(bx0 - px * b_w, by0, bz0 - pz * b_w))
+        v_br = bm_target.verts.new(gpos(bx0 + px * b_w, by0, bz0 + pz * b_w))
+
+        mx = bx0 + ca * (arch * 0.45)
+        mz = bz0 + sa * (arch * 0.45)
+        my = by0 + b_h * 0.54
+        mw = b_w * 0.72
+        v_ml = bm_target.verts.new(gpos(mx - px * mw, my, mz - pz * mw))
+        v_mr = bm_target.verts.new(gpos(mx + px * mw, my, mz + pz * mw))
+
+        tx = bx0 + ca * arch
+        tz = bz0 + sa * arch
+        ty = by0 + b_h
+        v_tip = bm_target.verts.new(gpos(tx, ty, tz))
+
+        f1 = bm_target.faces.new((v_bl, v_br, v_mr, v_ml))
+        f2 = bm_target.faces.new((v_ml, v_mr, v_tip))
+        face_list.extend([f1, f2])
+
+        uv_map = {
+            v_bl: (0.35, 0.12),
+            v_br: (0.65, 0.12),
+            v_ml: (0.38, 0.52),
+            v_mr: (0.62, 0.52),
+            v_tip: (0.50, 0.94),
+        }
+        for f in (f1, f2):
+            for loop in f.loops:
+                loop[uv_layer].uv = uv_map[loop.vert]
+
+    if new_lit_faces:
+        bmesh.ops.recalc_face_normals(bm_fol_lit, faces=new_lit_faces)
+    if new_shd_faces:
+        bmesh.ops.recalc_face_normals(bm_fol_shade, faces=new_shd_faces)
+
+
+def add_chiseled_rift_rock_ledge(
+    bm_rock_dark, bm_rock_top, gx, gy, gz, rad_x, rad_z, height,
+    rot_y_deg=0.0, seed=99, bm_fol_lit=None, bm_fol_shade=None, bm_rune=None
+):
+    rng = random.Random(seed)
+    segs = 8
     rot = mathutils.Matrix.Rotation(math.radians(rot_y_deg), 3, "Z")
     c_bot = gpos(gx, gy, gz)
-    c_mid = gpos(gx, gy + height * 0.85, gz)
+    c_mid = gpos(gx, gy + height * 0.84, gz)
     c_top = gpos(gx, gy + height, gz)
 
     bot_verts = []
     mid_verts = []
     top_verts = []
+    rim_world_pts = []
     for i in range(segs):
-        ang = (float(i) / float(segs)) * 2.0 * math.pi + rng.uniform(-0.12, 0.12)
-        jit = rng.uniform(0.84, 1.16)
+        ang = (float(i) / float(segs)) * 2.0 * math.pi + rng.uniform(-0.10, 0.10)
+        jit = rng.uniform(0.85, 1.15)
         lx = math.cos(ang) * rad_x * jit
         ly = math.sin(ang) * rad_z * jit
         bot_verts.append(bm_rock_dark.verts.new(c_bot + (rot @ mathutils.Vector((lx * 1.18, ly * 1.18, 0.0)))))
@@ -108,6 +181,8 @@ def add_chiseled_rift_rock_ledge(bm_rock_dark, bm_rock_top, gx, gy, gz, rad_x, r
         top_b = bm_rock_top.verts.new(c_mid + (rot @ mathutils.Vector((lx * 0.92, ly * 0.92, 0.0))))
         top_t = bm_rock_top.verts.new(c_top + (rot @ mathutils.Vector((lx * 0.78, ly * 0.78, 0.0))))
         top_verts.append((top_b, top_t))
+        wp = c_top + (rot @ mathutils.Vector((lx * 0.80, ly * 0.80, 0.0)))
+        rim_world_pts.append((wp.x, wp.z, -wp.y))
 
     dark_faces = []
     top_faces = []
@@ -122,6 +197,40 @@ def add_chiseled_rift_rock_ledge(bm_rock_dark, bm_rock_top, gx, gy, gz, rad_x, r
     bmesh.ops.recalc_face_normals(bm_rock_top, faces=top_faces)
     assign_world_uvs(bm_rock_dark, dark_faces, tile_scale=0.24)
     assign_world_uvs(bm_rock_top, top_faces, tile_scale=0.24)
+
+    # Thick moss-draped grass skirt capping the rock ledge + 3D grass tufts (`image.png`)
+    if bm_fol_lit is not None and bm_fol_shade is not None:
+        add_lol_serrated_cone_skirt(
+            bm_fol_lit, bm_fol_shade,
+            gx, gy + height - 0.04, gz,
+            r_outer_x=rad_x * 0.82, r_outer_z=rad_z * 0.82,
+            r_inner_ratio=0.72, h_cone=0.26, tip_drop=0.24,
+            n_tips=8, rot_deg=rot_y_deg, seed=seed + 31
+        )
+        for rx_p, ry_p, rz_p in rim_world_pts[::2]:
+            add_lol_grass_tuft_cluster(bm_fol_lit, bm_fol_shade, rx_p, ry_p - 0.04, rz_p, scale=0.88, n_blades=6, seed=seed + int(abs(rx_p * 13)))
+
+    # Glowing cyan-turquoise spiral rune carved on the rock monolith side (`image.png`)
+    if bm_rune is not None:
+        r_ang = math.radians(rot_y_deg)
+        fx_n = math.sin(r_ang)
+        fz_n = math.cos(r_ang)
+        tx_n = math.cos(r_ang)
+        tz_n = -math.sin(r_ang)
+        face_dist = min(rad_x, rad_z) * 0.96
+        rcx = gx + fx_n * face_dist
+        rcy = gy + height * 0.48
+        rcz = gz + fz_n * face_dist
+        spiral_pts = []
+        for s_i in range(18):
+            t = s_i / 17.0
+            a = t * 2.6 * math.pi
+            sr = (0.10 + 0.34 * t) * min(1.1, height * 0.85)
+            px = rcx + tx_n * (math.cos(a) * sr) + fx_n * 0.04
+            py = rcy + math.sin(a) * sr * 0.85
+            pz = rcz + tz_n * (math.cos(a) * sr) + fz_n * 0.04
+            spiral_pts.append((px, py, pz))
+        add_swept_tube(bm_rune, spiral_pts, 0.038, 0.038, sides=5)
 
 
 def add_cylinder(bm, gx, gy, gz, rad_bot, rad_top, height, segs, rot_y_deg=0.0, tile_scale=0.24):
@@ -213,7 +322,7 @@ def add_annulus_sector(bm, cx, cz, r_in, r_out, deg_start, deg_end, segs=12, y_b
     assign_world_uvs(bm, faces, tile_scale=tile_scale)
 
 
-def add_sculpted_foliage_cloud(bm, gx, gy, gz, rx, ry, rz, subdiv=2, seed=42, tile_scale=0.30):
+def add_sculpted_foliage_cloud(bm, gx, gy, gz, rx, ry, rz, subdiv=1, seed=42, tile_scale=0.30):
     ret = bmesh.ops.create_icosphere(bm, subdivisions=subdiv, radius=1.0)
     verts = ret["verts"]
     faces = list({f for v in verts for f in v.link_faces})
@@ -222,72 +331,368 @@ def add_sculpted_foliage_cloud(bm, gx, gy, gz, rx, ry, rz, subdiv=2, seed=42, ti
     ph2 = (seed * 2.91) % 6.28
     for v in verts:
         nx, ny, nz = v.co.x, v.co.y, v.co.z
-        puff = 1.0 + 0.14 * math.sin(nx * 3.2 + ph1) * math.cos(ny * 3.2 + ph2) + 0.08 * math.sin(nz * 4.0 + nx * 2.5)
-        z_squash = 0.72 if nz < 0.0 else 1.05
-        v.co = center + mathutils.Vector((nx * rx * puff, ny * rz * puff, nz * ry * puff * z_squash))
+        puff = 1.0 + 0.12 * math.sin(nx * 3.2 + ph1) * math.cos(ny * 3.2 + ph2)
+        v.co = center + mathutils.Vector((nx * rx * puff, ny * rz * puff, nz * ry * puff))
     bmesh.ops.recalc_face_normals(bm, faces=faces)
     assign_world_uvs(bm, faces, tile_scale=tile_scale)
 
 
-def add_palia_oak_tree(bm_wood, bm_fol_lit, bm_fol_shade, gx, gy, gz, scale=1.0, seed=101):
+def add_lol_serrated_cone_skirt(
+    bm_outer, bm_under_shade, cx, cy_base, cz,
+    r_outer_x, r_outer_z, r_inner_ratio=0.58, h_cone=1.35, tip_drop=0.38,
+    n_tips=7, apex_lean_x=0.0, apex_lean_z=0.0, rot_deg=0.0, seed=42
+):
+    """
+    Summoner's Rift Layered Pine Bough Skirt (`Captura de Tela 2026-11-23 às 19.03.45.png`):
+    - Concave flared bell-skirt geometry: steep upper neck (`r_mid = 0.44 * r_outer`) that flares
+      outward strongly into `n_tips` (6-8) big, bold, chunky pointed leaf-frond prongs!
+    - Single 0..1 UV wrap around the skirt so the broad vertical gouache leaf plumes on
+      `T_Real_Palia_Leaves.png` align directly with each chunky leaf prong (zero speckle noise!).
+    """
     rng = random.Random(seed)
-    lean_x = rng.uniform(-0.32, 0.32) * scale
-    lean_z = rng.uniform(-0.32, 0.32) * scale
-    trunk_pts = [
-        (gx, gy - 0.1, gz),
-        (gx + lean_x * 0.3, gy + 1.0 * scale, gz + lean_z * 0.3),
-        (gx + lean_x * 0.8, gy + 2.2 * scale, gz + lean_z * 0.8),
-        (gx + lean_x, gy + 3.4 * scale, gz + lean_z),
-    ]
-    add_swept_tube(bm_wood, trunk_pts, 0.46 * scale, 0.46 * scale, sides=10, radii_scale=[1.35, 0.92, 0.72, 0.54])
+    total_pts = n_tips * 2
+    rot_rad = math.radians(rot_deg)
 
-    for r_i in range(4):
-        ang = math.radians(r_i * 90.0 + rng.uniform(-18.0, 18.0))
+    uv_out = bm_outer.loops.layers.uv.active or bm_outer.loops.layers.uv.new("UVMap")
+    uv_shd = bm_under_shade.loops.layers.uv.active or bm_under_shade.loops.layers.uv.new("UVMap")
+
+    v_apex = bm_outer.verts.new(gpos(cx + apex_lean_x, cy_base + h_cone, cz + apex_lean_z))
+    v_under_center = bm_under_shade.verts.new(gpos(cx + apex_lean_x * 0.25, cy_base + h_cone * 0.32, cz + apex_lean_z * 0.25))
+
+    mid_verts = []
+    rim_out_verts = []
+    rim_shd_verts = []
+    rim_uvs = []
+    mid_uvs = []
+
+    for k in range(total_pts):
+        is_tip = (k % 2 == 0)
+        frac = float(k) / float(total_pts)
+        ang = frac * 2.0 * math.pi + rot_rad + rng.uniform(-0.06, 0.06)
+        ca, sa = math.cos(ang), math.sin(ang)
+
+        jit_r = rng.uniform(0.90, 1.12)
+        jit_y = rng.uniform(0.86, 1.16)
+
+        if is_tip:
+            rx = r_outer_x * jit_r
+            rz = r_outer_z * jit_r
+            ry = cy_base - tip_drop * jit_y
+        else:
+            rx = r_outer_x * r_inner_ratio * jit_r
+            rz = r_outer_z * r_inner_ratio * jit_r
+            ry = cy_base + tip_drop * 0.58 * jit_y
+
+        # Concave flare: narrower mid-neck (`0.42..0.48`) so the lower skirt sweeps outward like a fir bough
+        m_ratio = 0.48 if is_tip else 0.40
+        mx = cx + apex_lean_x * 0.50 + ca * (r_outer_x * m_ratio * jit_r)
+        mz = cz + apex_lean_z * 0.50 + sa * (r_outer_z * m_ratio * jit_r)
+        my = cy_base + h_cone * (0.46 if is_tip else 0.54)
+
+        wx = cx + ca * rx
+        wz = cz + sa * rz
+
+        mid_verts.append(bm_outer.verts.new(gpos(mx, my, mz)))
+        rim_out_verts.append(bm_outer.verts.new(gpos(wx, ry, wz)))
+        rim_shd_verts.append(bm_under_shade.verts.new(gpos(wx * 0.94 + cx * 0.06, ry + 0.03, wz * 0.94 + cz * 0.06)))
+
+        u_coord = float(k) / float(total_pts)
+        mid_uvs.append((u_coord, 0.45))
+        rim_uvs.append((u_coord, 0.94 if is_tip else 0.64))
+
+    out_faces = []
+    shd_faces = []
+    for k in range(total_pts):
+        nk = (k + 1) % total_pts
+        u0 = mid_uvs[k][0]
+        u1 = 1.0 if nk == 0 else mid_uvs[nk][0]
+
+        f_top = bm_outer.faces.new((mid_verts[k], mid_verts[nk], v_apex))
+        f_skirt = bm_outer.faces.new((rim_out_verts[k], rim_out_verts[nk], mid_verts[nk], mid_verts[k]))
+        out_faces.extend([f_top, f_skirt])
+
+        f_top.loops[0][uv_out].uv = (u0, 0.45)
+        f_top.loops[1][uv_out].uv = (u1, 0.45)
+        f_top.loops[2][uv_out].uv = (0.5 * (u0 + u1), 0.10)
+
+        f_skirt.loops[0][uv_out].uv = (u0, rim_uvs[k][1])
+        f_skirt.loops[1][uv_out].uv = (u1, rim_uvs[nk][1])
+        f_skirt.loops[2][uv_out].uv = (u1, 0.45)
+        f_skirt.loops[3][uv_out].uv = (u0, 0.45)
+
+        f_under = bm_under_shade.faces.new((rim_shd_verts[nk], rim_shd_verts[k], v_under_center))
+        shd_faces.append(f_under)
+        for loop in f_under.loops:
+            loop[uv_shd].uv = (0.5, 0.08)
+
+    bmesh.ops.recalc_face_normals(bm_outer, faces=out_faces)
+    bmesh.ops.recalc_face_normals(bm_under_shade, faces=shd_faces)
+
+
+def add_lol_rift_pine_tree(bm_wood, bm_fol_lit, bm_fol_shade, gx, gy, gz, scale=1.0, seed=101):
+    """
+    Summoner's Rift Layered Pine / Conifer Cluster (`Captura de Tela 2026-11-23 às 19.03.45.png` & `image.png`):
+    - Wide, deeply overlapping concave-flared bough skirts with 6-8 bold, chunky pointed leaf prongs,
+      deep viridian-teal under-skirt shadow pockets, and a curved windswept pointed apex tip.
+    - Flanked by 2-3 smaller clustered sub-pine spires tucked around its base.
+    """
+    rng = random.Random(seed)
+    lean_x = rng.uniform(-0.35, 0.35) * scale
+    lean_z = rng.uniform(-0.35, 0.35) * scale
+    if abs(lean_x) < 0.14 * scale:
+        lean_x = 0.24 * scale
+
+    trunk_pts = [
+        (gx, gy - 0.10, gz),
+        (gx + lean_x * 0.25, gy + 0.85 * scale, gz + lean_z * 0.25),
+        (gx + lean_x * 0.60, gy + 2.20 * scale, gz + lean_z * 0.60),
+    ]
+    add_swept_tube(bm_wood, trunk_pts, 0.34 * scale, 0.34 * scale, sides=8, radii_scale=[1.35, 0.85, 0.45])
+
+    # 6 deeply overlapping, wide-flared pine skirts climbing to a curved windswept hooked apex
+    tiers = [
+        # (y_base, r_outer, r_inner_ratio, h_cone, tip_drop, n_tips, use_lit_outer)
+        (0.45, 2.35, 0.56, 1.55, 0.44, 8, False),
+        (1.05, 2.08, 0.56, 1.50, 0.42, 8, True),
+        (1.68, 1.78, 0.55, 1.45, 0.38, 7, False),
+        (2.32, 1.46, 0.55, 1.40, 0.35, 7, True),
+        (2.96, 1.12, 0.54, 1.35, 0.30, 6, True),
+        (3.58, 0.76, 0.52, 1.55, 0.26, 6, True),
+    ]
+    for idx, (ty, r_out, r_in_rat, h_c, t_drop, n_t, use_lit) in enumerate(tiers):
+        t_frac = idx / float(len(tiers) - 1)
+        cx = gx + lean_x * (t_frac ** 1.3)
+        cz = gz + lean_z * (t_frac ** 1.3)
+        # Stronger apex hook on the top tier to match the curved tip in Captura de Tela 2026-11-23 às 19.03.45.png
+        hook_mult = 0.85 if idx == len(tiers) - 1 else 0.42
+        ap_x = lean_x * hook_mult * (0.4 + t_frac)
+        ap_z = lean_z * hook_mult * (0.4 + t_frac)
+        outer_bm = bm_fol_lit if use_lit else bm_fol_shade
+        add_lol_serrated_cone_skirt(
+            outer_bm, bm_fol_shade,
+            cx, gy + ty * scale, cz,
+            r_outer_x=r_out * scale, r_outer_z=r_out * scale,
+            r_inner_ratio=r_in_rat, h_cone=h_c * scale, tip_drop=t_drop * scale,
+            n_tips=n_t, apex_lean_x=ap_x, apex_lean_z=ap_z,
+            rot_deg=idx * 25.0 + rng.uniform(-8.0, 8.0),
+            seed=seed + idx * 17
+        )
+
+    # 2-3 smaller clustered sub-pine spires at the base (`Captura de Tela 2026-11-23 às 19.03.45.png`)
+    num_sub = 2 if scale < 1.05 else 3
+    base_ang = rng.uniform(0.0, 2.0 * math.pi)
+    for s_i in range(num_sub):
+        s_ang = base_ang + s_i * (2.0 * math.pi / float(num_sub)) + rng.uniform(-0.35, 0.35)
+        dist = rng.uniform(1.40, 1.92) * scale
+        sx = gx + math.cos(s_ang) * dist
+        sz = gz + math.sin(s_ang) * dist
+        sub_sc = rng.uniform(0.48, 0.64) * scale
+        sub_lean_x = math.cos(s_ang) * 0.32 * sub_sc
+        sub_lean_z = math.sin(s_ang) * 0.32 * sub_sc
+        for st_idx, (sty, sr_out, sh_c, st_drop, sn_t, s_lit) in enumerate([
+            (0.25, 1.72, 1.25, 0.32, 7, False),
+            (0.85, 1.36, 1.22, 0.28, 6, True),
+            (1.45, 0.96, 1.22, 0.24, 6, True),
+            (2.02, 0.58, 1.32, 0.20, 5, True),
+        ]):
+            add_lol_serrated_cone_skirt(
+                bm_fol_lit if s_lit else bm_fol_shade, bm_fol_shade,
+                sx + sub_lean_x * (st_idx * 0.3), gy + sty * sub_sc, sz + sub_lean_z * (st_idx * 0.3),
+                r_outer_x=sr_out * sub_sc, r_outer_z=sr_out * sub_sc,
+                r_inner_ratio=0.56, h_cone=sh_c * sub_sc, tip_drop=st_drop * sub_sc,
+                n_tips=sn_t, apex_lean_x=sub_lean_x * 0.55, apex_lean_z=sub_lean_z * 0.55,
+                rot_deg=st_idx * 27.0, seed=seed + 200 + s_i * 31 + st_idx
+            )
+
+    for g_i in range(4):
+        ga = base_ang + g_i * 1.57 + 0.4
+        add_lol_grass_tuft_cluster(
+            bm_fol_lit, bm_fol_shade,
+            gx + math.cos(ga) * 1.75 * scale, gy, gz + math.sin(ga) * 1.75 * scale,
+            scale=0.88 * scale, n_blades=7, seed=seed + 400 + g_i
+        )
+
+
+def add_lol_billowing_canopy_dome(bm_lit, bm_shade, cx, cy, cz, rx, ry, rz, n_lobes=8, seed=42):
+    """
+    Riot Games / Devoted Studios (`image-2.png`) Billowing Rounded Canopy Cloud-Dome:
+    Instead of a pointed cone, constructs a smooth, plump, rounded 4-ring dome cap on top
+    with two shingled scalloped leaf-frond skirts cascading down the sides and a dark
+    concave under-canopy shadow belly (`bm_shade`).
+    """
+    rng = random.Random(seed)
+    segs = n_lobes * 2
+    uv_lit = bm_lit.loops.layers.uv.active or bm_lit.loops.layers.uv.new("UVMap")
+    uv_shd = bm_shade.loops.layers.uv.active or bm_shade.loops.layers.uv.new("UVMap")
+
+    # Top center vertex of the rounded dome (flat/rounded crown, NEVER a sharp cone spike!)
+    v_top = bm_lit.verts.new(gpos(cx, cy + ry * 0.92, cz))
+    v_under = bm_shade.verts.new(gpos(cx, cy + ry * 0.08, cz))
+
+    # 3 concentric rings forming a plump, rounded ellipsoid dome + scalloped drooping leaf-tuft rim
+    ring_specs = [
+        # (r_scale, y_offset_ratio, uv_v, lobe_amp)
+        (0.45, 0.78, 0.22, 0.04),
+        (0.82, 0.46, 0.48, 0.08),
+        (1.04, -0.08, 0.88, 0.14),
+    ]
+    rings = []
+    ring_uvs = []
+    shd_rim = []
+
+    for r_idx, (r_sc, y_rat, uv_v, l_amp) in enumerate(ring_specs):
+        r_verts = []
+        r_u = []
+        for k in range(segs):
+            is_lobe_tip = (k % 2 == 0)
+            frac = float(k) / float(segs)
+            ang = frac * 2.0 * math.pi + rng.uniform(-0.04, 0.04)
+            ca, sa = math.cos(ang), math.sin(ang)
+
+            lobe_r = (1.0 + l_amp) if is_lobe_tip else (1.0 - l_amp * 0.85)
+            lobe_y = (-l_amp * 0.95) if (r_idx == 2 and is_lobe_tip) else (l_amp * 0.45 if r_idx == 2 else 0.0)
+            jit = rng.uniform(0.95, 1.05)
+
+            wx = cx + ca * rx * r_sc * lobe_r * jit
+            wz = cz + sa * rz * r_sc * lobe_r * jit
+            wy = cy + ry * (y_rat + lobe_y)
+
+            r_verts.append(bm_lit.verts.new(gpos(wx, wy, wz)))
+            r_u.append((frac, uv_v + (0.06 if (r_idx == 2 and is_lobe_tip) else 0.0)))
+            if r_idx == 2:
+                shd_rim.append(bm_shade.verts.new(gpos(wx * 0.94 + cx * 0.06, wy - 0.04, wz * 0.94 + cz * 0.06)))
+        rings.append(r_verts)
+        ring_uvs.append(r_u)
+
+    lit_faces = []
+    shd_faces = []
+    for k in range(segs):
+        nk = (k + 1) % segs
+        u0 = float(k) / float(segs)
+        u1 = 1.0 if nk == 0 else float(nk) / float(segs)
+
+        # Dome cap ring 0
+        f0 = bm_lit.faces.new((rings[0][k], rings[0][nk], v_top))
+        f0.loops[0][uv_lit].uv = (u0, ring_uvs[0][k][1])
+        f0.loops[1][uv_lit].uv = (u1, ring_uvs[0][nk][1])
+        f0.loops[2][uv_lit].uv = (0.5 * (u0 + u1), 0.12)
+        lit_faces.append(f0)
+
+        # Dome mid & outer scalloped skirt rings
+        for r_idx in range(2):
+            fa = bm_lit.faces.new((rings[r_idx + 1][k], rings[r_idx + 1][nk], rings[r_idx][nk], rings[r_idx][k]))
+            fa.loops[0][uv_lit].uv = (u0, ring_uvs[r_idx + 1][k][1])
+            fa.loops[1][uv_lit].uv = (u1, ring_uvs[r_idx + 1][nk][1])
+            fa.loops[2][uv_lit].uv = (u1, ring_uvs[r_idx][nk][1])
+            fa.loops[3][uv_lit].uv = (u0, ring_uvs[r_idx][k][1])
+            lit_faces.append(fa)
+
+        # Recessed dark under-canopy shadow skirt (`bm_shade`)
+        fu = bm_shade.faces.new((shd_rim[nk], shd_rim[k], v_under))
+        for loop in fu.loops:
+            loop[uv_shd].uv = (0.5, 0.12)
+        shd_faces.append(fu)
+
+    bmesh.ops.recalc_face_normals(bm_lit, faces=lit_faces)
+    bmesh.ops.recalc_face_normals(bm_shade, faces=shd_faces)
+
+
+def add_lol_handpainted_canopy_tree(bm_wood, bm_fol_lit, bm_fol_shade, gx, gy, gz, scale=1.0, seed=101, bm_grass_lit=None, bm_grass_shade=None):
+    """
+    Riot Games / Devoted Studios (`image-2.png`) Hand-Painted Broadleaf & Spirit Blossom Tree:
+    - S-curved gnarled trunk with 5 arched surface root tendrils snaking out over the ground/stone.
+    - Overlapping rounded billowing canopy cloud-domes (`add_lol_billowing_canopy_dome`) that form
+      a lush, soft-contoured umbrella silhouette (zero sharp cone spikes!).
+    """
+    rng = random.Random(seed)
+    g_lit = bm_grass_lit if bm_grass_lit is not None else bm_fol_lit
+    g_shd = bm_grass_shade if bm_grass_shade is not None else bm_fol_shade
+
+    lean_x = rng.uniform(-0.45, 0.45) * scale
+    lean_z = rng.uniform(-0.45, 0.45) * scale
+    trunk_pts = [
+        (gx, gy - 0.08, gz),
+        (gx - lean_x * 0.25, gy + 1.05 * scale, gz - lean_z * 0.25),
+        (gx + lean_x * 0.45, gy + 2.20 * scale, gz + lean_z * 0.45),
+        (gx + lean_x, gy + 3.30 * scale, gz + lean_z),
+    ]
+    add_swept_tube(bm_wood, trunk_pts, 0.44 * scale, 0.44 * scale, sides=10, radii_scale=[1.42, 0.94, 0.72, 0.52])
+
+    # 5 arched surface root tendrils snaking over the stone/earth (`image-2.png`)
+    for r_i in range(5):
+        ang = math.radians(r_i * 72.0 + rng.uniform(-14.0, 14.0))
         dx, dz = math.cos(ang), math.sin(ang)
+        px_t, pz_t = -dz, dx
+        wiggle = rng.uniform(-0.22, 0.22) * scale
         root_pts = [
-            (gx + dx * 0.92 * scale, gy - 0.08, gz + dz * 0.92 * scale),
-            (gx + dx * 0.50 * scale, gy + 0.35 * scale, gz + dz * 0.50 * scale),
-            (gx + dx * 0.18 * scale, gy + 1.10 * scale, gz + dz * 0.18 * scale),
+            (gx + dx * 0.16 * scale, gy + 1.30 * scale, gz + dz * 0.16 * scale),
+            (gx + dx * 0.58 * scale + px_t * wiggle * 0.5, gy + 0.45 * scale, gz + dz * 0.58 * scale + pz_t * wiggle * 0.5),
+            (gx + dx * 1.08 * scale + px_t * wiggle, gy + 0.08 * scale, gz + dz * 1.08 * scale + pz_t * wiggle),
+            (gx + dx * 1.55 * scale, gy - 0.04, gz + dz * 1.55 * scale),
         ]
-        add_swept_tube(bm_wood, root_pts, 0.21 * scale, 0.21 * scale, sides=7, radii_scale=[0.45, 0.85, 1.0])
+        add_swept_tube(bm_wood, root_pts, 0.22 * scale, 0.22 * scale, sides=7, radii_scale=[0.95, 0.82, 0.48, 0.18])
+        ma = ang + math.radians(36.0)
+        add_lol_grass_tuft_cluster(
+            g_lit, g_shd,
+            gx + math.cos(ma) * 0.85 * scale, gy, gz + math.sin(ma) * 0.85 * scale,
+            scale=0.80 * scale, n_blades=6, seed=seed + 50 + r_i
+        )
 
     top_x, top_y, top_z = trunk_pts[-1]
-    branch_dirs = [(-1.42, 0.82), (1.45, 0.75), (-0.82, -1.32), (1.08, -1.22)]
+    branch_dirs = [(-1.45, 0.80), (1.48, 0.75), (-0.82, -1.35), (1.10, -1.22)]
     for b_idx, (bx_d, bz_d) in enumerate(branch_dirs):
         end_x = top_x + bx_d * scale
-        end_y = top_y + rng.uniform(1.05, 1.40) * scale
+        end_y = top_y + rng.uniform(0.85, 1.20) * scale
         end_z = top_z + bz_d * scale
         b_pts = [
-            (top_x, top_y - 0.3 * scale, top_z),
-            (0.5 * (top_x + end_x), top_y + 0.45 * scale, 0.5 * (top_z + end_z)),
+            (top_x, top_y - 0.25 * scale, top_z),
+            (0.5 * (top_x + end_x), top_y + 0.40 * scale, 0.5 * (top_z + end_z)),
             (end_x, end_y, end_z),
         ]
-        add_swept_tube(bm_wood, b_pts, 0.23 * scale, 0.23 * scale, sides=8, radii_scale=[1.0, 0.72, 0.40])
-        add_sculpted_foliage_cloud(bm_fol_shade, end_x, end_y - 0.15 * scale, end_z, 1.72 * scale, 1.12 * scale, 1.62 * scale, subdiv=2, seed=seed + b_idx * 7)
-        add_sculpted_foliage_cloud(bm_fol_lit, end_x * 0.92 + gx * 0.08, end_y + 0.45 * scale, end_z * 0.92 + gz * 0.08, 1.52 * scale, 1.02 * scale, 1.48 * scale, subdiv=2, seed=seed + b_idx * 13)
+        add_swept_tube(bm_wood, b_pts, 0.22 * scale, 0.22 * scale, sides=8, radii_scale=[1.0, 0.70, 0.38])
+        # Lower shadow cushion + rounded upper billowing dome
+        add_lol_billowing_canopy_dome(
+            bm_fol_shade, bm_fol_shade,
+            end_x, end_y - 0.12 * scale, end_z,
+            rx=1.80 * scale, ry=0.95 * scale, rz=1.72 * scale,
+            n_lobes=8, seed=seed + b_idx * 17
+        )
+        add_lol_billowing_canopy_dome(
+            bm_fol_lit, bm_fol_shade,
+            end_x * 0.94 + top_x * 0.06, end_y + 0.24 * scale, end_z * 0.94 + top_z * 0.06,
+            rx=1.68 * scale, ry=1.02 * scale, rz=1.62 * scale,
+            n_lobes=8, seed=seed + b_idx * 23
+        )
 
-    add_sculpted_foliage_cloud(bm_fol_shade, top_x, top_y + 0.85 * scale, top_z, 2.30 * scale, 1.32 * scale, 2.20 * scale, subdiv=2, seed=seed + 51)
-    add_sculpted_foliage_cloud(bm_fol_lit, top_x, top_y + 1.52 * scale, top_z, 2.00 * scale, 1.22 * scale, 1.90 * scale, subdiv=2, seed=seed + 63)
-    add_sculpted_foliage_cloud(bm_fol_lit, top_x - 0.52 * scale, top_y + 1.92 * scale, top_z + 0.32 * scale, 1.42 * scale, 0.92 * scale, 1.38 * scale, subdiv=2, seed=seed + 79)
+    # Grand rounded upper crown dome (`image-2.png`)
+    add_lol_billowing_canopy_dome(
+        bm_fol_shade, bm_fol_shade,
+        top_x, top_y + 0.92 * scale, top_z,
+        rx=2.35 * scale, ry=1.18 * scale, rz=2.25 * scale,
+        n_lobes=10, seed=seed + 83
+    )
+    add_lol_billowing_canopy_dome(
+        bm_fol_lit, bm_fol_shade,
+        top_x, top_y + 1.32 * scale, top_z,
+        rx=2.12 * scale, ry=1.24 * scale, rz=2.04 * scale,
+        n_lobes=9, seed=seed + 97
+    )
 
 
 def add_palia_cypress_tree(bm_wood, bm_fol_lit, bm_fol_shade, gx, gy, gz, scale=1.0, seed=202):
-    add_cylinder(bm_wood, gx, gy, gz, 0.16 * scale, 0.11 * scale, 1.1 * scale, 8)
-    tiers = [
-        (0.75, 0.76, 1.12, False),
-        (1.42, 0.66, 1.08, True),
-        (2.10, 0.54, 1.02, False),
-        (2.74, 0.40, 0.92, True),
-        (3.32, 0.25, 0.82, True),
-    ]
-    for idx, (ty, rad, th, is_lit) in enumerate(tiers):
-        target = bm_fol_lit if is_lit else bm_fol_shade
-        add_sculpted_foliage_cloud(target, gx, gy + ty * scale, gz, rad * scale, th * 0.65 * scale, rad * scale, subdiv=2, seed=seed + idx * 11)
+    """Compact Summoner's Rift Layered Pine Spire for the 4 Central Plaza Garden Islands."""
+    add_lol_rift_pine_tree(bm_wood, bm_fol_lit, bm_fol_shade, gx, gy, gz, scale=0.68 * scale, seed=seed)
 
 
-def add_flower_bush_cluster(bm_fol_shade, bm_flw_purple, bm_flw_pink, bm_flw_white, gx, gy, gz, scale=1.0, seed=303):
+def add_flower_bush_cluster(bm_fol_lit, bm_fol_shade, bm_flw_purple, bm_flw_pink, bm_flw_white, gx, gy, gz, scale=1.0, seed=303):
     rng = random.Random(seed)
-    add_sculpted_foliage_cloud(bm_fol_shade, gx, gy + 0.26 * scale, gz, 0.68 * scale, 0.40 * scale, 0.64 * scale, subdiv=1, seed=seed)
+    add_lol_billowing_canopy_dome(
+        bm_fol_lit, bm_fol_shade,
+        gx, gy + 0.22 * scale, gz,
+        rx=0.72 * scale, ry=0.42 * scale, rz=0.68 * scale,
+        n_lobes=7, seed=seed
+    )
+    add_lol_grass_tuft_cluster(bm_fol_lit, bm_fol_shade, gx, gy, gz, scale=0.85 * scale, n_blades=7, seed=seed + 7)
     for _ in range(3):
         lx = gx + rng.uniform(-0.35, 0.35) * scale
         lz = gz + rng.uniform(-0.35, 0.35) * scale
@@ -587,8 +992,47 @@ def bake_lol_edge_highlights_and_crevices(bm, top_highlight=1.16, crevice_dark=0
             loop[col_layer] = (r, g, b, 1.0)
 
 
-def make_mesh_object(name, bm, mat, smooth_shading=False, top_hi=1.16, crev_dark=0.70):
-    bake_lol_edge_highlights_and_crevices(bm, top_highlight=top_hi, crevice_dark=crev_dark)
+def bake_lol_foliage_gradient(bm, is_blossom=False, is_lit_layer=True):
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    col_layer = bm.loops.layers.color.active or bm.loops.layers.color.new("Col")
+    uv_layer = bm.loops.layers.uv.active
+    if not bm.verts:
+        return
+
+    for v in bm.verts:
+        l_faces = v.link_faces
+        if not l_faces:
+            continue
+        avg_nz = sum(f.normal.z for f in l_faces) / float(len(l_faces))
+        for loop in v.link_loops:
+            uv_y = loop[uv_layer].uv.y if uv_layer else 0.5
+            if avg_nz < -0.20:
+                if not is_blossom:
+                    col = (0.44, 0.64, 0.66, 1.0)
+                else:
+                    col = (0.62, 0.50, 0.74, 1.0)
+            else:
+                crown_lift = max(0.0, min(1.0, (0.45 + uv_y * 0.45) * 0.60 + (avg_nz + 0.4) * 0.40))
+                if not is_lit_layer:
+                    crown_lift *= 0.80
+                if not is_blossom:
+                    r = min(1.0, 0.58 + 0.42 * crown_lift)
+                    g = min(1.0, 0.74 + 0.26 * crown_lift)
+                    b = min(1.0, 0.68 + 0.16 * crown_lift)
+                    col = (r, g, b, 1.0)
+                else:
+                    r = min(1.0, 0.78 + 0.22 * crown_lift)
+                    g = min(1.0, 0.64 + 0.32 * crown_lift)
+                    b = min(1.0, 0.80 + 0.18 * crown_lift)
+                    col = (r, g, b, 1.0)
+            loop[col_layer] = col
+
+
+def make_mesh_object(name, bm, mat, smooth_shading=False, top_hi=1.16, crev_dark=0.70, is_foliage=False, is_blossom=False, is_lit_layer=True):
+    if is_foliage:
+        bake_lol_foliage_gradient(bm, is_blossom=is_blossom, is_lit_layer=is_lit_layer)
+    else:
+        bake_lol_edge_highlights_and_crevices(bm, top_highlight=top_hi, crevice_dark=crev_dark)
     mesh = bpy.data.meshes.new(name + "_Mesh")
     bm.to_mesh(mesh)
     bm.free()
@@ -621,7 +1065,7 @@ def make_mat(name, color=(1, 1, 1, 1), tex_path=None, rough=0.88, metal=0.0, emi
     return mat
 
 
-def build_lorencia_lol_city_v8():
+def build_lorencia_lol_city_v9():
     bpy.ops.wm.read_factory_settings(use_empty=True)
 
     flagstone_tex = os.path.join(BLENDER_DIR, "T_LoL_Mossy_Flagstones.png")
@@ -630,9 +1074,9 @@ def build_lorencia_lol_city_v8():
     rift_terrain_tex = os.path.join(BLENDER_DIR, "T_LoL_Rift_Terrain.png")
     roof_tex = os.path.join(BLENDER_DIR, "T_Palia_Terracotta_Roof.png")
     leaves_tex = os.path.join(BLENDER_DIR, "T_Real_Palia_Leaves.png")
+    blossom_tex = os.path.join(BLENDER_DIR, "T_LoL_Blossom_Leaves.png")
     metal_tex = os.path.join(BLENDER_DIR, "T_Lorencia_Metal_Trim.png")
 
-    # Hand-painted League of Legends / Arcane weathered stone & rich regional palette
     mat_flagstones = make_mat("MI_LoL_Mossy_Flagstones", color=(1.0, 0.99, 0.97, 1.0), tex_path=flagstone_tex, rough=0.90)
     mat_terrain = make_mat("MI_LoL_Rift_Terrain", color=(1.0, 0.99, 0.97, 1.0), tex_path=rift_terrain_tex, rough=0.92)
     mat_stone_body = make_mat("MI_LoL_Stone_Body", color=(0.86, 0.82, 0.76, 1.0), tex_path=weathered_stone_tex)
@@ -647,8 +1091,10 @@ def build_lorencia_lol_city_v8():
     mat_banner = make_mat("MI_LoL_Banner", color=(1.0, 0.98, 0.96, 1.0), tex_path=metal_tex, rough=0.80)
     mat_water = make_mat("MI_Lorencia_Water", color=(0.22, 0.78, 0.88, 1.0), rough=0.18, emission=(0.16, 0.68, 0.82, 1.0), emit_str=0.55)
     mat_ember = make_mat("MI_Lorencia_Ember", color=(1.0, 0.74, 0.28, 1.0), rough=0.35, emission=(1.0, 0.62, 0.18, 1.0), emit_str=1.35)
-    mat_fol_lit = make_mat("MI_LoL_Foliage_Lit", color=(1.06, 1.08, 0.92, 1.0), tex_path=leaves_tex)
-    mat_fol_shade = make_mat("MI_LoL_Foliage_Shade", color=(0.74, 0.82, 0.68, 1.0), tex_path=leaves_tex)
+    mat_fol_lit = make_mat("MI_LoL_Foliage_Lit", color=(1.04, 1.08, 0.94, 1.0), tex_path=leaves_tex)
+    mat_fol_shade = make_mat("MI_LoL_Foliage_Shade", color=(0.72, 0.84, 0.76, 1.0), tex_path=leaves_tex)
+    mat_blossom_lit = make_mat("MI_LoL_Blossom_Lit", color=(1.04, 0.98, 1.02, 1.0), tex_path=blossom_tex)
+    mat_blossom_shade = make_mat("MI_LoL_Blossom_Shade", color=(0.82, 0.68, 0.86, 1.0), tex_path=blossom_tex)
     mat_flw_purple = make_mat("MI_Palia_Flowers_Purple", color=(0.58, 0.34, 0.88, 1.0))
     mat_flw_pink = make_mat("MI_Palia_Flowers_Pink", color=(0.94, 0.48, 0.72, 1.0))
     mat_flw_white = make_mat("MI_Palia_Flowers_White", color=(0.98, 0.96, 0.90, 1.0))
@@ -669,16 +1115,17 @@ def build_lorencia_lol_city_v8():
     bm_ember = bmesh.new()
     bm_fol_lit = bmesh.new()
     bm_fol_shade = bmesh.new()
+    bm_blossom_lit = bmesh.new()
+    bm_blossom_shade = bmesh.new()
     bm_flw_purple = bmesh.new()
     bm_flw_pink = bmesh.new()
     bm_flw_white = bmesh.new()
 
     # ═══════════════════════════════════════════════════════════════════
     # 1. SEAMLESS SUMMONER'S RIFT TERRAIN & ZERO-OVERLAP LOL STONE TILE FLOORS
-    #    (y = -0.14 terrain vs y = 0.00 town tiles -> ZERO Z-fighting & ZERO divider lines!)
     # ═══════════════════════════════════════════════════════════════════
     fx, fz = 0.0, 11.5
-    add_box(bm_terrain, 0.0, -0.34, -12.0, 160.0, 0.20, 160.0, tile_scale=0.12)
+    add_box(bm_terrain, 0.0, -0.34, -12.0, 160.0, 0.20, 160.0, tile_scale=0.065)
 
     # Region A: Central Sunspire Rotunda, East Merchant/Vault Quarter & South Belvedere (x = -11.4..+31.0, z = -3.0..+31.0)
     add_box(bm_flagstones, 9.8, -0.08, 14.0, 42.4, 0.08, 34.0, tile_scale=0.24)
@@ -706,19 +1153,26 @@ def build_lorencia_lol_city_v8():
 
     # ★ 4 CRESCENT GREEN LAWN GARDEN ISLANDS (r = 8.4..11.8m at 45°, 135°, 225°, 315°) ★
     for g_idx, g_deg in enumerate([45.0, 135.0, 225.0, 315.0]):
-        add_annulus_sector(bm_terrain, fx, fz, 8.4, 11.8, g_deg - 20.0, g_deg + 20.0, segs=6, y_bot=0.0, y_top=0.08, tile_scale=0.14)
+        add_annulus_sector(bm_terrain, fx, fz, 8.4, 11.8, g_deg - 20.0, g_deg + 20.0, segs=6, y_bot=0.0, y_top=0.08, tile_scale=0.08)
         add_annulus_sector(bm_stone_body, fx, fz, 8.2, 8.5, g_deg - 21.0, g_deg + 21.0, segs=6, y_bot=0.0, y_top=0.28, tile_scale=0.24)
         add_annulus_sector(bm_stone_body, fx, fz, 11.7, 12.0, g_deg - 21.0, g_deg + 21.0, segs=6, y_bot=0.0, y_top=0.28, tile_scale=0.24)
         ang_r = math.radians(g_deg)
         gx_mid = fx + math.sin(ang_r) * 10.1
         gz_mid = fz + math.cos(ang_r) * 10.1
-        add_palia_cypress_tree(bm_wood_walnut := bm_wood, bm_fol_lit, bm_fol_shade, gx_mid, 0.08, gz_mid, scale=0.88, seed=500 + g_idx)
+        add_palia_cypress_tree(bm_wood, bm_fol_lit, bm_fol_shade, gx_mid, 0.08, gz_mid, scale=0.95, seed=500 + g_idx)
         for f_off in [-13.0, 13.0]:
             af = math.radians(g_deg + f_off)
             add_flower_bush_cluster(
-                bm_fol_shade, bm_flw_purple, bm_flw_pink, bm_flw_white,
+                bm_fol_lit, bm_fol_shade, bm_flw_purple, bm_flw_pink, bm_flw_white,
                 fx + math.sin(af) * 10.0, 0.08, fz + math.cos(af) * 10.0,
                 scale=0.92, seed=520 + g_idx * 3 + (1 if f_off > 0 else 0)
+            )
+        for g_off in [-7.0, 7.0]:
+            ag = math.radians(g_deg + g_off)
+            add_lol_grass_tuft_cluster(
+                bm_fol_lit, bm_fol_shade,
+                fx + math.sin(ag) * 9.8, 0.08, fz + math.cos(ag) * 9.8,
+                scale=0.92, n_blades=8, seed=560 + g_idx * 5 + (1 if g_off > 0 else 0)
             )
 
     # ═══════════════════════════════════════════════════════════════════
@@ -746,12 +1200,10 @@ def build_lorencia_lol_city_v8():
         pz = fz + math.sin(ang) * 3.42
         add_chiseled_block(bm_stone_body, bm_stone_hi, px, 0.0, pz, 0.52, 0.86, 0.52, rot_y_deg=math.degrees(-ang))
 
-    # 4 Curved Wooden-and-Stone Park Benches around the Fountain Rim
     for b_deg in [45.0, 135.0, 225.0, 315.0]:
         add_annulus_sector(bm_stone_body, fx, fz, 3.88, 4.35, b_deg - 24.0, b_deg + 24.0, segs=6, y_bot=0.0, y_top=0.42, tile_scale=0.24)
         add_annulus_sector(bm_wood, fx, fz, 3.85, 4.42, b_deg - 25.0, b_deg + 25.0, segs=6, y_bot=0.42, y_top=0.50, tile_scale=0.24)
 
-    # 4 Curved Weathered-Stone Buttress Arches holding the Upper Chalice Font!
     for leg_i in range(4):
         ang = math.radians(45.0 + leg_i * 90.0)
         dx, dz = math.cos(ang), math.sin(ang)
@@ -770,7 +1222,11 @@ def build_lorencia_lol_city_v8():
     add_cylinder(bm_water, fx, 3.38, fz, 1.76, 1.76, 0.08, 12)
     for m_i in range(6):
         ang = (float(m_i) / 6.0) * 2.0 * math.pi + 0.35
-        add_sculpted_foliage_cloud(bm_fol_lit if (m_i % 2 == 0) else bm_fol_shade, fx + math.cos(ang) * 1.88, 2.95, fz + math.sin(ang) * 1.88, 0.52, 0.65, 0.52, subdiv=1, seed=800 + m_i)
+        add_lol_grass_tuft_cluster(
+            bm_fol_lit, bm_fol_shade,
+            fx + math.cos(ang) * 1.90, 2.85, fz + math.sin(ang) * 1.90,
+            scale=0.68, n_blades=6, seed=800 + m_i
+        )
 
     # ═══════════════════════════════════════════════════════════════════
     # 4. DISTRICT 2 (WEST): ARTISAN FORGE FOUNDRY & CANAL-SIDE TAVERN
@@ -778,7 +1234,6 @@ def build_lorencia_lol_city_v8():
     add_lol_runeterra_building(bm_stone_wall, bm_stone_body, bm_stone_hi, bm_terra, bm_roof, bm_gold, bm_iron, bm_glass, -32.8, 3.5, 7.2, 12.2, stories=3, facing_east=True)
     add_domed_rotunda_cathedral(bm_stone_wall, bm_stone_body, bm_stone_hi, bm_roof, bm_gold, -31.8, 17.8, radius=5.8, height=11.8)
 
-    # Lumen's Half-Timbered & Walnut Tavern Terrace (-21.5, 0.0, 3.8)
     tx, tz = -21.5, 3.8
     for p_i in range(9):
         add_box(bm_wood, tx, 0.08, tz - 3.6 + p_i * 0.92, 8.8, 0.08, 0.84)
@@ -800,7 +1255,6 @@ def build_lorencia_lol_city_v8():
         add_box(bm_wood, tbx, 0.16, tbz - 0.85, 2.1, 0.42, 0.38)
         add_box(bm_wood, tbx, 0.16, tbz + 0.85, 2.1, 0.42, 0.38)
 
-    # Hanzo's Blacksmith Forge Hearth & True-Scale 0.94m Anvil at (-17.8, 0, 16.5)
     sx, sz = -22.5, 16.8
     add_chiseled_block(bm_stone_body, bm_stone_hi, sx - 2.2, 0.08, sz, 2.8, 4.4, 4.2)
     add_cylinder(bm_iron, sx - 2.4, 4.48, sz, 0.82, 0.62, 4.8, 8)
@@ -832,7 +1286,6 @@ def build_lorencia_lol_city_v8():
     add_windmill_tower(bm_stone_wall, bm_stone_body, bm_stone_hi, bm_terra, bm_wood, bm_gold, wx=25.5, wz=10.2)
     add_domed_rotunda_cathedral(bm_stone_wall, bm_stone_body, bm_stone_hi, bm_roof, bm_gold, 30.8, 17.5, radius=6.2, height=12.4)
 
-    # Open-Air Apothecary Porch Counter (+18.2, 0.0, 4.2) & Vault Chests (+20.5, 0.0, 16.5)
     mx, mz = 18.2, 4.2
     add_box(bm_wood, mx, 0.08, mz, 1.10, 0.92, 5.8)
     add_box(bm_wood, mx, 0.98, mz, 1.26, 0.11, 6.0)
@@ -845,58 +1298,101 @@ def build_lorencia_lol_city_v8():
         add_box(bm_gold, 20.5, 0.50, 16.5 + cz_o, 1.22, 0.18, 1.62)
 
     # ═══════════════════════════════════════════════════════════════════
-    # 6. 18 SPIRAL STREETLAMPS + ARCANE/LOL HERALDIC BANNERS, FESTOON LANTERNS & SMOOTH TREES
+    # 6. 18 SPIRAL STREETLAMPS + HERALDIC BANNERS, SUMMONER'S RIFT LAYERED PINES,
+    #    DEVOTED STUDIOS BILLOWING CANOPY / SPIRIT BLOSSOM TREES & 3D GRASS TUFTS
     # ═══════════════════════════════════════════════════════════════════
     for sx_l, b_dir in [(-16.2, -1.0), (15.5, 1.0), (-9.2, 1.0), (9.2, -1.0)]:
         for lz in [-0.5, 10.5, 21.5]:
             add_arcane_streetlamp_with_banner(bm_stone_body, bm_stone_hi, bm_iron, bm_gold, bm_banner, bm_ember, sx_l, 0.0, lz, banner_dir_x=b_dir)
 
-    # Rope-wrapped Festoon Timber Lantern Posts framing the West Tavern & East Apothecary walks
     add_palia_rope_lantern_post(bm_wood, bm_gold, bm_iron, bm_ember, -17.2, 0.0, 8.2, facing_x=1.0)
     add_palia_rope_lantern_post(bm_wood, bm_gold, bm_iron, bm_ember, -17.2, 0.0, 1.2, facing_x=1.0)
     add_festoon_lantern_string(bm_iron, bm_ember, (-17.2, 4.45, 8.2), (-17.2, 4.45, 1.2), sag=0.60, num_lanterns=3)
 
-    # Smooth-Shaded Multi-Lobe League/Palia Oak Trees (zero low-poly faceted cones!)
-    for ox, oz, osc, oseed in [
-        (-25.8, -1.5, 1.10, 101),
-        (-26.5, 10.5, 1.15, 102),
-        (-25.5, 23.5, 1.10, 103),
-        (24.5, -1.5, 1.10, 104),
-        (24.8, 23.5, 1.10, 105),
-        (-16.5, 27.5, 1.15, 106),
-        (16.5, 27.5, 1.15, 107),
-        (-19.5, -7.5, 1.35, 108),
-        (19.5, -7.5, 1.35, 109),
-        (-28.5, -11.5, 1.50, 110),
-        (28.5, -11.5, 1.50, 111),
-        (-16.5, -19.5, 1.40, 112),
-        (16.5, -19.5, 1.40, 113),
-        (-20.0, -30.0, 1.50, 114),
-        (20.0, -30.0, 1.50, 115),
+    # A. Town Trees: Mix of Summoner's Rift Layered Pines & Devoted Studios Billowing Broadleaf / Spirit Blossom Trees
+    for ox, oz, osc, oseed, t_kind in [
+        (-25.8, -1.5, 1.08, 101, "pine"),
+        (-26.5, 10.5, 1.12, 102, "blossom"),  # Billowing Spirit Blossom sakura tree beside Lumen's Tavern & Forge
+        (-25.5, 23.5, 1.08, 103, "green_canopy"),
+        (24.5, -1.5, 1.06, 104, "blossom"),   # Billowing Spirit Blossom sakura tree framing East Apothecary & Windmill
+        (24.8, 23.5, 1.08, 105, "pine"),
+        (-16.5, 27.5, 1.10, 106, "pine"),
+        (16.5, 27.5, 1.10, 107, "green_canopy"),
     ]:
-        if oz > -2.0:
-            add_chiseled_block(bm_stone_body, bm_stone_hi, ox, 0.0, oz, 2.4 * osc, 0.52, 2.4 * osc)
-            add_palia_oak_tree(bm_wood, bm_fol_lit, bm_fol_shade, ox, 0.50, oz, scale=osc * 0.92, seed=oseed)
+        add_chiseled_block(bm_stone_body, bm_stone_hi, ox, 0.0, oz, 2.5 * osc, 0.50, 2.5 * osc)
+        if t_kind == "pine":
+            add_lol_rift_pine_tree(bm_wood, bm_fol_lit, bm_fol_shade, ox, 0.48, oz, scale=osc * 0.92, seed=oseed)
+        elif t_kind == "blossom":
+            add_lol_handpainted_canopy_tree(
+                bm_wood, bm_blossom_lit, bm_blossom_shade,
+                ox, 0.48, oz, scale=osc * 0.92, seed=oseed,
+                bm_grass_lit=bm_fol_lit, bm_grass_shade=bm_fol_shade
+            )
         else:
-            add_palia_oak_tree(bm_wood, bm_fol_lit, bm_fol_shade, ox, -0.14, oz, scale=osc, seed=oseed)
+            add_lol_handpainted_canopy_tree(
+                bm_wood, bm_fol_lit, bm_fol_shade,
+                ox, 0.48, oz, scale=osc * 0.92, seed=oseed,
+                bm_grass_lit=bm_fol_lit, bm_grass_shade=bm_fol_shade
+            )
 
-    # Staggered Chiseled Border Stones & Summoner's Rift Rock Ledges (image-2.png & image-3.png!)
-    add_staggered_rift_border_stones(bm_stone_body, bm_stone_hi, -28.0, -2.5, -15.5, -2.5, step=1.5, seed=31)
-    add_staggered_rift_border_stones(bm_stone_body, bm_stone_hi, 15.5, -2.5, 28.0, -2.5, step=1.5, seed=41)
-    add_staggered_rift_border_stones(bm_stone_body, bm_stone_hi, -4.2, -14.8, -4.2, -34.0, step=1.5, seed=51)
-    add_staggered_rift_border_stones(bm_stone_body, bm_stone_hi, 4.2, -14.8, 4.2, -34.0, step=1.5, seed=61)
+    # B. Summoner's Rift Layered Pine / Conifer Clusters & Outskirts Spirit Blossom Shrine Trees
+    for px_t, pz_t, psc, pseed, p_kind in [
+        (-19.5, -7.5, 1.28, 108, "pine"),
+        (19.5, -7.5, 1.28, 109, "pine"),
+        (-13.5, -9.8, 1.15, 118, "pine"),
+        (13.5, -9.8, 1.15, 119, "pine"),
+        (-28.5, -11.5, 1.42, 110, "pine"),
+        (28.5, -11.5, 1.42, 111, "pine"),
+        (-16.5, -19.5, 1.22, 112, "blossom"),
+        (16.5, -19.5, 1.32, 113, "pine"),
+        (-22.5, -24.5, 1.38, 116, "pine"),
+        (22.5, -24.5, 1.22, 117, "blossom"),
+        (-20.0, -31.0, 1.45, 114, "pine"),
+        (20.0, -31.0, 1.45, 115, "pine"),
+    ]:
+        if p_kind == "pine":
+            add_lol_rift_pine_tree(bm_wood, bm_fol_lit, bm_fol_shade, px_t, -0.14, pz_t, scale=psc, seed=pseed)
+        else:
+            add_lol_handpainted_canopy_tree(
+                bm_wood, bm_blossom_lit, bm_blossom_shade,
+                px_t, -0.14, pz_t, scale=psc * 0.95, seed=pseed,
+                bm_grass_lit=bm_fol_lit, bm_grass_shade=bm_fol_shade
+            )
+
+    # C. Staggered Chiseled Border Stones, Moss-Draped Runic Rock Ledges & Meadow Grass Tufts
+    add_staggered_rift_border_stones(bm_stone_body, bm_stone_hi, -28.0, -2.5, -15.5, -2.5, step=1.5, seed=31, bm_fol_lit=bm_fol_lit, bm_fol_shade=bm_fol_shade)
+    add_staggered_rift_border_stones(bm_stone_body, bm_stone_hi, 15.5, -2.5, 28.0, -2.5, step=1.5, seed=41, bm_fol_lit=bm_fol_lit, bm_fol_shade=bm_fol_shade)
+    add_staggered_rift_border_stones(bm_stone_body, bm_stone_hi, -4.2, -14.8, -4.2, -34.0, step=1.5, seed=51, bm_fol_lit=bm_fol_lit, bm_fol_shade=bm_fol_shade)
+    add_staggered_rift_border_stones(bm_stone_body, bm_stone_hi, 4.2, -14.8, 4.2, -34.0, step=1.5, seed=61, bm_fol_lit=bm_fol_lit, bm_fol_shade=bm_fol_shade)
 
     for rx, rz, rw, rd, rh, rrot, rseed in [
-        (-18.5, -6.8, 3.6, 2.5, 1.05, 18.0, 101),
-        (18.5, -6.8, 3.6, 2.5, 1.05, -22.0, 102),
-        (-10.5, -17.5, 3.2, 2.2, 0.95, 32.0, 103),
-        (10.8, -19.2, 3.4, 2.3, 1.00, -28.0, 104),
-        (-12.5, -27.5, 3.8, 2.6, 1.25, 14.0, 105),
-        (12.8, -28.5, 3.8, 2.6, 1.25, -19.0, 106),
-        (-24.5, 28.5, 3.2, 2.2, 0.85, 25.0, 107),
-        (24.5, 28.5, 3.2, 2.2, 0.85, -25.0, 108),
+        (-16.5, -6.5, 3.6, 2.5, 1.35, 18.0, 101),
+        (16.5, -6.5, 3.6, 2.5, 1.35, -22.0, 102),
+        (-10.5, -17.5, 3.3, 2.3, 1.25, 32.0, 103),
+        (10.8, -19.2, 3.4, 2.3, 1.28, -28.0, 104),
+        (-12.5, -27.5, 3.8, 2.6, 1.45, 14.0, 105),
+        (12.8, -28.5, 3.8, 2.6, 1.45, -19.0, 106),
+        (-24.5, 28.5, 3.2, 2.2, 0.95, 25.0, 107),
+        (24.5, 28.5, 3.2, 2.2, 0.95, -25.0, 108),
     ]:
-        add_chiseled_rift_rock_ledge(bm_stone_body, bm_stone_hi, rx, -0.14, rz, rw, rd, rh, rot_y_deg=rrot, seed=rseed)
+        add_chiseled_rift_rock_ledge(
+            bm_stone_body, bm_stone_hi, rx, -0.14, rz, rw, rd, rh,
+            rot_y_deg=rrot, seed=rseed,
+            bm_fol_lit=bm_fol_lit, bm_fol_shade=bm_fol_shade, bm_rune=bm_water
+        )
+
+    rng_grass = random.Random(888)
+    for g_idx, (gx_c, gz_c) in enumerate([
+        (-8.5, -5.8), (8.5, -5.8), (-11.8, -12.5), (11.8, -12.5),
+        (-7.5, -16.2), (7.5, -16.2), (-8.8, -22.5), (8.8, -22.5),
+        (-14.5, -15.0), (14.5, -15.0), (-15.0, -24.0), (15.0, -24.0),
+        (-6.8, -31.0), (6.8, -31.0),
+    ]):
+        add_lol_grass_tuft_cluster(
+            bm_fol_lit, bm_fol_shade,
+            gx_c + rng_grass.uniform(-0.4, 0.4), -0.14, gz_c + rng_grass.uniform(-0.4, 0.4),
+            scale=rng_grass.uniform(1.05, 1.38), n_blades=8, seed=900 + g_idx
+        )
 
     # ═══════════════════════════════════════════════════════════════════
     # 7. SOUTH BELVEDERE BALUSTRADE & NORTH TWIN-PYLON VIADUCT BRIDGE
@@ -905,7 +1401,6 @@ def build_lorencia_lol_city_v8():
         add_chiseled_block(bm_stone_body, bm_stone_hi, side * 16.0, 0.0, 31.2, 22.0, 1.15, 1.30)
         add_chiseled_block(bm_stone_body, bm_stone_hi, side * 5.0, 0.0, 31.2, 1.75, 1.95, 1.75)
 
-    # Open-Top Twin 16.5m Triumphal Viaduct Gatehouse Pylons at (x = ±6.8, z = -3.2)
     for side in [-1.0, 1.0]:
         px = side * 6.8
         add_chiseled_block(bm_stone_body, bm_stone_hi, px, 0.0, -3.2, 4.4, 2.0, 4.4)
@@ -918,7 +1413,6 @@ def build_lorencia_lol_city_v8():
         for cx in range(11, 31, 3):
             add_chiseled_block(bm_stone_body, bm_stone_hi, side * float(cx), 2.8, -3.2, 1.45, 0.70, 1.75)
 
-    # ★ GRAND 7.2m-WIDE VIADUCT WOODEN PLANK EXIT BRIDGE (z = -3.5 to -14.5) ★
     for pz_plank in range(-4, -15, -1):
         add_box(bm_wood, 0.0, -0.01, float(pz_plank) - 0.3, 7.2, 0.16, 0.88)
     for side in [-1.0, 1.0]:
@@ -930,7 +1424,6 @@ def build_lorencia_lol_city_v8():
             if post_z in [-4.0, -14.0]:
                 add_cylinder(bm_ember, side * 3.65, 1.44, post_z, 0.20, 0.26, 0.36, 8)
 
-    # Northern Outskirts Lamps + Banners & Ancient Boss Colosseum at z = -42.0
     for rz in [-18.0, -25.0, -32.0]:
         for side in [-1.0, 1.0]:
             add_arcane_streetlamp_with_banner(bm_stone_body, bm_stone_hi, bm_iron, bm_gold, bm_banner, bm_ember, side * 5.2, -0.14, rz, banner_dir_x=-side)
@@ -963,15 +1456,17 @@ def build_lorencia_lol_city_v8():
     make_mesh_object("Lorencia_Stone_Edge_Hi", bm_stone_hi, mat_stone_hi, smooth_shading=False)
     make_mesh_object("Lorencia_Terracotta", bm_terra, mat_terracotta, smooth_shading=False)
     make_mesh_object("Lorencia_Mansard_Roofs", bm_roof, mat_roof_slate, smooth_shading=False)
-    make_mesh_object("Lorencia_Walnut_Wood", bm_wood, mat_wood_walnut, smooth_shading=False)
+    make_mesh_object("Lorencia_Walnut_Wood", bm_wood, mat_wood_walnut, smooth_shading=True)
     make_mesh_object("Lorencia_Wrought_Iron", bm_iron, mat_iron_verdigris, smooth_shading=True)
     make_mesh_object("Lorencia_Gold_Brass", bm_gold, mat_gold_brass, smooth_shading=False)
     make_mesh_object("Lorencia_Window_Glass", bm_glass, mat_window_glass, smooth_shading=False)
     make_mesh_object("Lorencia_Banners", bm_banner, mat_banner, smooth_shading=False, top_hi=1.06, crev_dark=0.94)
     make_mesh_object("Lorencia_Water", bm_water, mat_water, smooth_shading=True, top_hi=1.0, crev_dark=1.0)
     make_mesh_object("Lorencia_Embers", bm_ember, mat_ember, smooth_shading=True, top_hi=1.0, crev_dark=1.0)
-    make_mesh_object("Lorencia_Foliage_Lit", bm_fol_lit, mat_fol_lit, smooth_shading=True, top_hi=1.18, crev_dark=0.72)
-    make_mesh_object("Lorencia_Foliage_Shade", bm_fol_shade, mat_fol_shade, smooth_shading=True, top_hi=1.08, crev_dark=0.66)
+    make_mesh_object("Lorencia_Foliage_Lit", bm_fol_lit, mat_fol_lit, smooth_shading=True, is_foliage=True, is_blossom=False, is_lit_layer=True)
+    make_mesh_object("Lorencia_Foliage_Shade", bm_fol_shade, mat_fol_shade, smooth_shading=True, is_foliage=True, is_blossom=False, is_lit_layer=False)
+    make_mesh_object("Lorencia_Foliage_Blossom_Lit", bm_blossom_lit, mat_blossom_lit, smooth_shading=True, is_foliage=True, is_blossom=True, is_lit_layer=True)
+    make_mesh_object("Lorencia_Foliage_Blossom_Shade", bm_blossom_shade, mat_blossom_shade, smooth_shading=True, is_foliage=True, is_blossom=True, is_lit_layer=False)
     make_mesh_object("Lorencia_Flowers_Purple", bm_flw_purple, mat_flw_purple, smooth_shading=True)
     make_mesh_object("Lorencia_Flowers_Pink", bm_flw_pink, mat_flw_pink, smooth_shading=True)
     make_mesh_object("Lorencia_Flowers_White", bm_flw_white, mat_flw_white, smooth_shading=True)
@@ -990,7 +1485,7 @@ def build_lorencia_lol_city_v8():
         export_apply=True,
         export_materials="EXPORT",
     )
-    print("Exported LoL / Arcane Lorencia City v8:", blend_path, "->", glb_path)
+    print("Exported LoL / Summoner's Rift & Spirit Blossom Lorencia City v9.2:", blend_path, "->", glb_path)
 
 
-build_lorencia_lol_city_v8()
+build_lorencia_lol_city_v9()
