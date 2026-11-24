@@ -18,7 +18,7 @@ varying vec3 v_baked_paint;
 
 void vertex() {
 	vec3 world_p = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	float height_mask = clamp((world_p.y - 0.15) / 4.2, 0.0, 1.0);
+	float height_mask = clamp((VERTEX.y - 0.12) / 3.8, 0.0, 1.0);
 	float wave_x = sin(TIME * sway_speed + world_p.x * 0.65 + world_p.z * 0.55);
 	float wave_z = cos(TIME * (sway_speed * 0.85) + world_p.z * 0.65 - world_p.x * 0.45);
 	VERTEX.x += wave_x * sway_strength * height_mask;

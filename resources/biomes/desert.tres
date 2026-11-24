@@ -1,0 +1,32 @@
+[gd_resource type="Resource" script_class="BiomeConfig" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/world_gen/biome_config.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://addons/lorencia_town/Lorencia_Town_T_LoL_Weathered_Stone.png" id="2_sec"]
+[ext_resource type="Texture2D" path="res://addons/lorencia_town/Lorencia_Town_T_LoL_Mossy_Flagstones.png" id="3_path"]
+[ext_resource type="Texture2D" path="res://addons/lorencia_town/Lorencia_Town_T_LoL_Rift_Terrain.png" id="4_prim"]
+
+[resource]
+script = ExtResource("1_script")
+biome_id = &"desert"
+display_name = "Sunlit Desert"
+debug_color = Color(0.91, 0.76, 0.42, 1)
+base_elevation = 5.0
+height_amplitude = 9.5
+noise_frequency = 0.006
+octaves = 3
+lacunarity = 1.95
+gain = 0.45
+ridge_sharpness = 0.25
+water_table_offset = -5.0
+tex_primary = ExtResource("4_prim")
+tex_secondary = ExtResource("2_sec")
+tex_cliff = ExtResource("2_sec")
+tex_path = ExtResource("3_path")
+primary_tint = Color(0.95, 0.82, 0.52, 1)
+secondary_tint = Color(0.82, 0.62, 0.38, 1)
+cliff_tint = Color(0.68, 0.48, 0.34, 1)
+path_tint = Color(0.84, 0.74, 0.56, 1)
+slope_rock_threshold = Vector2(0.24, 0.48)
+high_altitude_range = Vector2(24, 36)
+scatter_rules = Array[Resource]([])
+landmark_scenes = Array[PackedScene]([])
