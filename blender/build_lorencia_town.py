@@ -7,21 +7,15 @@ import bmesh
 import mathutils
 
 # ═══════════════════════════════════════════════════════════════════════════
-# LEAGUE OF LEGENDS / SUMMONER'S RIFT & SPIRIT BLOSSOM CITY (v9.5)
-# Exact Riot Games / Devoted Studios Spirit Blossom Tree Diorama (`1795472939345-download.png`):
-# 1. Deep, Asymmetric Multi-Tiered Spirit Blossom Canopy (`add_lol_spirit_blossom_diorama`):
-#    - Smooth high-subdivision rounded canopy cloud lobes (`subdiv = 3` icosphere domes,
-#      ZERO radial umbrella spokes!) stacked in a cascading 3-tier waterfall silhouette
-#      (tall rounded upper crown, wide diagonal mid-cascade shoulders, low drooping left/right
-#      bough puffs).
-#    - Shingled 3D Feathered Sakura Leaf-Cluster Fans (`add_lol_3d_feathered_leaf_fan`)
-#      layered across the crown, mid-cascade, and hanging lower hem so real 3D pointed sakura
-#      leaf clusters break the silhouette contour just like `1795472939345-download.png`!
-#    - Correct Blender->glTF UV orientation (`UV.v = 0.92` at top sunlit crown -> `UV.v = 0.08`
-#      at hanging lower plum leaf tips) sampling the real Devoted Studios leaf crop!
-# 2. Arched Hollow-Root Cave Trunk, 7 Sinuous Snaking Root Tendrils, Mossy Bark Streaks,
-#    Hanging White Paper Shide Talisman Streamers, Stepped Mossy Rock Outcrop Base,
-#    Flanking Companion Blossom Trees, and Sacred Shimenawa Rope-Bound Stones!
+# LEAGUE OF LEGENDS / SUMMONER'S RIFT & SPIRIT BLOSSOM CITY (v10 - Alpha Card & Varied Silhouettes)
+# 1. Authentic Riot Games / Devoted Studios RGBA Alpha-Cutout Leaf Cluster Cards
+#    (`T_LoL_Blossom_Leaves.png` & `T_Real_Palia_Leaves.png` 2x2 Atlases) + CC0 Alpha Grass
+#    Tuft Cards (`T_LoL_Grass_Tuft_Alpha.png`) with Spherical Normal Transfer!
+# 2. Every single tree in the world has a UNIQUE body shape (7 distinct tree architecture
+#    archetypes + per-instance procedural trunk curves, branch angles, and canopy cloud proportions —
+#    ZERO repeated diorama clones!).
+# 3. Stripe-free, octagon-free Summoner's Rift hand-painted meadow grass terrain with
+#    dual-scale rotated UV shader blending.
 # ═══════════════════════════════════════════════════════════════════════════
 
 PROJECT_DIR = "/Users/diogo.silva/OpenBot/Agents/agent-0f47a086-7b1c-416a-86ce-7cb8de846218/project-vessel"
@@ -32,6 +26,14 @@ os.makedirs(BLENDER_DIR, exist_ok=True)
 os.makedirs(OUT_GLB_DIR, exist_ok=True)
 
 UV_BANNER = (0.51, 0.75, 0.02, 0.98)
+
+# 2x2 RGBA Atlas UV bounds in Blender (u0, u1, v_bot, v_top)
+ATLAS_CELLS = [
+    (0.02, 0.48, 0.52, 0.98),  # Cell 0: Top-Left (Main cascading canopy bouquet)
+    (0.52, 0.98, 0.52, 0.98),  # Cell 1: Top-Right (Bonsai twin-lobe bouquet)
+    (0.02, 0.48, 0.02, 0.48),  # Cell 2: Bottom-Left (Cascading double-lobe bouquet)
+    (0.52, 0.98, 0.02, 0.48),  # Cell 3: Bottom-Right (Full crown & shoulder bouquet)
+]
 
 
 def gpos(gx, gy, gz):
@@ -73,7 +75,7 @@ def add_chiseled_block(bm_body, bm_edge_hi, gx, gy, gz, sx, sy, sz, rot_y_deg=0.
     add_box(bm_edge_hi, gx, gy + body_h, gz, sx * 0.98, cap_h, sz * 0.98, rot_y_deg=rot_y_deg, taper_top=bevel_inset, tile_scale=tile_scale)
 
 
-def add_staggered_rift_border_stones(bm_body, bm_edge_hi, x0, z0, x1, z1, step=1.55, seed=42, bm_fol_lit=None, bm_fol_shade=None):
+def add_staggered_rift_border_stones(bm_body, bm_edge_hi, x0, z0, x1, z1, step=1.55, seed=42, bm_grass=None):
     rng = random.Random(seed)
     dist = math.hypot(x1 - x0, z1 - z0)
     count = max(2, int(round(dist / step)))
@@ -87,82 +89,226 @@ def add_staggered_rift_border_stones(bm_body, bm_edge_hi, x0, z0, x1, z1, step=1
         h = rng.uniform(0.14, 0.26)
         rot = base_ang + rng.uniform(-16.0, 16.0)
         add_chiseled_block(bm_body, bm_edge_hi, cx, -0.02, cz, w, h, d, rot_y_deg=rot)
-        if bm_fol_lit is not None and bm_fol_shade is not None and (i % 2 == 0):
+        if bm_grass is not None and (i % 2 == 0):
             gx_t = cx + rng.uniform(-0.45, 0.45)
             gz_t = cz + rng.uniform(-0.45, 0.45)
-            add_lol_grass_tuft_cluster(bm_fol_lit, bm_fol_shade, gx_t, -0.02, gz_t, scale=0.85, n_blades=6, seed=seed + i * 7)
+            add_lol_alpha_grass_tuft(bm_grass, gx_t, -0.02, gz_t, scale=0.85, seed=seed + i * 7)
 
 
-def add_lol_grass_tuft_cluster(bm_fol_lit, bm_fol_shade, gx, gy, gz, scale=1.0, n_blades=7, seed=303):
+def add_lol_alpha_grass_tuft(bm_grass, gx, gy, gz, scale=1.0, seed=303):
     """
-    3D Hand-Painted League of Legends Grass-Blade Tuft Cluster:
-     Note Blender UV.v convention: v = 0.88 samples top of texture (dark viridian root tuck),
-    v = 0.08 samples bottom of texture (warm sunlit chartreuse blade tip)!
+    3D Alpha-Cutout Grass Tuft Card Cluster (`T_LoL_Grass_Tuft_Alpha.png` from CC0 grassbush):
+    Places 3 intersecting slightly curved quad cards at 60° star angles, tilted outward so
+    they read cleanly from both isometric top-down and side views!
     """
     rng = random.Random(seed)
-    uv_lit = bm_fol_lit.loops.layers.uv.active or bm_fol_lit.loops.layers.uv.new("UVMap")
-    uv_shd = bm_fol_shade.loops.layers.uv.active or bm_fol_shade.loops.layers.uv.new("UVMap")
+    uv_layer = bm_grass.loops.layers.uv.active or bm_grass.loops.layers.uv.new("UVMap")
+    col_layer = bm_grass.loops.layers.color.active or bm_grass.loops.layers.color.new("Col")
 
-    new_lit_faces = []
-    new_shd_faces = []
+    w = rng.uniform(0.95, 1.25) * scale
+    h = rng.uniform(0.70, 0.95) * scale
+    base_yaw = rng.uniform(0.0, math.pi)
+    new_faces = []
 
-    for b_i in range(n_blades):
-        ang = (float(b_i) / float(n_blades)) * 2.0 * math.pi + rng.uniform(-0.26, 0.26)
+    for c_i in range(3):
+        ang = base_yaw + c_i * (math.pi / 3.0) + rng.uniform(-0.12, 0.12)
         ca, sa = math.cos(ang), math.sin(ang)
-        px, pz = -sa, ca
+        nx, nz = -sa, ca
+        tilt = 0.28 * h * (1.0 if (c_i % 2 == 0) else -1.0)
+        hw = w * 0.5
 
-        r_off = rng.uniform(0.05, 0.24) * scale
-        bx0 = gx + ca * r_off
-        bz0 = gz + sa * r_off
-        by0 = gy
+        v_bl = bm_grass.verts.new(gpos(gx - ca * hw, gy - 0.03, gz - sa * hw))
+        v_br = bm_grass.verts.new(gpos(gx + ca * hw, gy - 0.03, gz + sa * hw))
+        v_tr = bm_grass.verts.new(gpos(gx + ca * hw + nx * tilt, gy + h, gz + sa * hw + nz * tilt))
+        v_tl = bm_grass.verts.new(gpos(gx - ca * hw + nx * tilt, gy + h, gz - sa * hw + nz * tilt))
 
-        b_h = rng.uniform(0.42, 0.78) * scale
-        b_w = rng.uniform(0.11, 0.17) * scale
-        arch = rng.uniform(0.26, 0.52) * scale
-
-        bm_target = bm_fol_lit if (b_i % 3 != 0) else bm_fol_shade
-        uv_layer = uv_lit if (b_i % 3 != 0) else uv_shd
-        face_list = new_lit_faces if (b_i % 3 != 0) else new_shd_faces
-
-        v_bl = bm_target.verts.new(gpos(bx0 - px * b_w, by0, bz0 - pz * b_w))
-        v_br = bm_target.verts.new(gpos(bx0 + px * b_w, by0, bz0 + pz * b_w))
-
-        mx = bx0 + ca * (arch * 0.45)
-        mz = bz0 + sa * (arch * 0.45)
-        my = by0 + b_h * 0.54
-        mw = b_w * 0.72
-        v_ml = bm_target.verts.new(gpos(mx - px * mw, my, mz - pz * mw))
-        v_mr = bm_target.verts.new(gpos(mx + px * mw, my, mz + pz * mw))
-
-        tx = bx0 + ca * arch
-        tz = bz0 + sa * arch
-        ty = by0 + b_h
-        v_tip = bm_target.verts.new(gpos(tx, ty, tz))
-
-        f1 = bm_target.faces.new((v_bl, v_br, v_mr, v_ml))
-        f2 = bm_target.faces.new((v_ml, v_mr, v_tip))
-        face_list.extend([f1, f2])
-
+        f = bm_grass.faces.new((v_bl, v_br, v_tr, v_tl))
+        new_faces.append(f)
         uv_map = {
-            v_bl: (0.35, 0.88),
-            v_br: (0.65, 0.88),
-            v_ml: (0.38, 0.48),
-            v_mr: (0.62, 0.48),
-            v_tip: (0.50, 0.08),
+            v_bl: (0.04, 0.04),
+            v_br: (0.96, 0.04),
+            v_tr: (0.96, 0.96),
+            v_tl: (0.04, 0.96),
         }
-        for f in (f1, f2):
-            for loop in f.loops:
-                loop[uv_layer].uv = uv_map[loop.vert]
+        col_map = {
+            v_bl: (0.72, 0.84, 0.78, 1.0),
+            v_br: (0.72, 0.84, 0.78, 1.0),
+            v_tr: (1.04, 1.06, 0.94, 1.0),
+            v_tl: (1.04, 1.06, 0.94, 1.0),
+        }
+        for loop in f.loops:
+            loop[uv_layer].uv = uv_map[loop.vert]
+            loop[col_layer] = col_map[loop.vert]
 
-    if new_lit_faces:
-        bmesh.ops.recalc_face_normals(bm_fol_lit, faces=new_lit_faces)
-    if new_shd_faces:
-        bmesh.ops.recalc_face_normals(bm_fol_shade, faces=new_shd_faces)
+    bmesh.ops.recalc_face_normals(bm_grass, faces=new_faces)
+    for f in new_faces:
+        for v in f.verts:
+            v.normal = mathutils.Vector((0.0, 0.0, 1.0))
+
+
+def add_curved_alpha_leaf_card(
+    bm, uv_layer, col_layer,
+    card_cx, card_cy, card_cz,
+    cloud_cx, cloud_cy, cloud_cz,
+    width, height, yaw_rad, pitch_rad,
+    cell_idx=0, shade_tint=(1.0, 1.0, 1.0), flip_u=False
+):
+    """
+    Creates a gently domed 2x2-subdivided quad card mapped to one of the 4 authentic
+    Devoted Studios hand-painted leaf-cluster bouquets in our 1024x1024 RGBA Atlas!
+    """
+    u0, u1, v0, v1 = ATLAS_CELLS[cell_idx % 4]
+    if flip_u:
+        u0, u1 = u1, u0
+
+    cy_a, sy_a = math.cos(yaw_rad), math.sin(yaw_rad)
+    cp_a, sp_a = math.cos(pitch_rad), math.sin(pitch_rad)
+
+    rx_v, ry_v, rz_v = -sy_a, 0.0, cy_a
+    nx_v, ny_v, nz_v = cy_a * cp_a, sp_a, sy_a * cp_a
+    ux_v, uy_v, uz_v = -cy_a * sp_a, cp_a, -sy_a * sp_a
+
+    grid_verts = [[None] * 3 for _ in range(3)]
+    grid_uvs = [[None] * 3 for _ in range(3)]
+    grid_cols = [[None] * 3 for _ in range(3)]
+
+    cloud_center_b = gpos(cloud_cx, cloud_cy, cloud_cz)
+
+    for iy in range(3):
+        fy = (iy / 2.0) - 0.5
+        v_tex = v0 + (iy / 2.0) * (v1 - v0)
+        for ix in range(3):
+            fx = (ix / 2.0) - 0.5
+            u_tex = u0 + (ix / 2.0) * (u1 - u0)
+
+            camber = (1.0 - (fx * fx * 2.2 + fy * fy * 2.2)) * 0.22 * min(width, height)
+            wx = card_cx + rx_v * (fx * width) + ux_v * (fy * height) + nx_v * camber
+            wy = card_cy + ry_v * (fx * width) + uy_v * (fy * height) + ny_v * camber
+            wz = card_cz + rz_v * (fx * width) + uz_v * (fy * height) + nz_v * camber
+
+            bv = bm.verts.new(gpos(wx, wy, wz))
+            sph_n = (bv.co - cloud_center_b)
+            sph_n.z = max(0.25, sph_n.z + 0.55)
+            bv.normal = sph_n.normalized()
+
+            v_lift = 0.86 + 0.18 * (iy / 2.0)
+            cr = min(1.0, shade_tint[0] * v_lift)
+            cg = min(1.0, shade_tint[1] * v_lift)
+            cb = min(1.0, shade_tint[2] * v_lift)
+
+            grid_verts[iy][ix] = bv
+            grid_uvs[iy][ix] = (u_tex, v_tex)
+            grid_cols[iy][ix] = (cr, cg, cb, 1.0)
+
+    faces = []
+    for iy in range(2):
+        for ix in range(2):
+            v00 = grid_verts[iy][ix]
+            v10 = grid_verts[iy][ix + 1]
+            v11 = grid_verts[iy + 1][ix + 1]
+            v01 = grid_verts[iy + 1][ix]
+            f = bm.faces.new((v00, v10, v11, v01))
+            faces.append(f)
+            uv_lookup = {
+                v00: grid_uvs[iy][ix],
+                v10: grid_uvs[iy][ix + 1],
+                v11: grid_uvs[iy + 1][ix + 1],
+                v01: grid_uvs[iy + 1][ix],
+            }
+            col_lookup = {
+                v00: grid_cols[iy][ix],
+                v10: grid_cols[iy][ix + 1],
+                v11: grid_cols[iy + 1][ix + 1],
+                v01: grid_cols[iy + 1][ix],
+            }
+            for loop in f.loops:
+                loop[uv_layer].uv = uv_lookup[loop.vert]
+                loop[col_layer] = col_lookup[loop.vert]
+    return faces
+
+
+def add_alpha_card_canopy_bouquet(bm_lit, bm_shade, cx, cy, cz, rx, ry, rz, seed=42):
+    """
+    Constructs a lush, volumetric 3D hand-painted foliage cloud solely from overlapping
+    domed RGBA Alpha-Cutout Leaf Cluster Cards (`T_LoL_Blossom_Leaves.png` or `T_Real_Palia_Leaves.png`)
+    with Spherical Normal Transfer:
+    - Layer 1 (Inner & Lower Under-Bough Cushion in `bm_shade`): 6 large intersecting/ringed curved
+      alpha cards blocking any central gaps and providing deep cool under-shadow.
+    - Layer 2 (Mid-Canopy Shingled Shoulder Ring in `bm_lit`): 7 curved alpha cards shingled around
+      the perimeter and isometric camera-facing hemisphere.
+    - Layer 3 (Upper Sunlit Crown Cap in `bm_lit`): 4 curved dome cards crowning the top of the cloud.
+    """
+    rng = random.Random(seed)
+    uv_lit = bm_lit.loops.layers.uv.active or bm_lit.loops.layers.uv.new("UVMap")
+    col_lit = bm_lit.loops.layers.color.active or bm_lit.loops.layers.color.new("Col")
+    uv_shd = bm_shade.loops.layers.uv.active or bm_shade.loops.layers.uv.new("UVMap")
+    col_shd = bm_shade.loops.layers.color.active or bm_shade.loops.layers.color.new("Col")
+
+    avg_r = 0.5 * (rx + rz)
+    rot_off = rng.uniform(0.0, 2.0 * math.pi)
+
+    # 1. Inner & Lower Shadow Core Cards (6 cards in `bm_shade`)
+    for i in range(6):
+        ang = rot_off + (i / 6.0) * 2.0 * math.pi + rng.uniform(-0.15, 0.15)
+        ca, sa = math.cos(ang), math.sin(ang)
+        dist_f = 0.25 if (i < 2) else 0.52
+        px = cx + ca * rx * dist_f
+        pz = cz + sa * rz * dist_f
+        py = cy - ry * (0.12 if i < 2 else 0.22)
+        pitch = rng.uniform(0.45, 0.72) if i < 2 else rng.uniform(0.22, 0.42)
+        add_curved_alpha_leaf_card(
+            bm_shade, uv_shd, col_shd,
+            px, py, pz, cx, cy - 0.35 * ry, cz,
+            width=avg_r * rng.uniform(1.65, 1.90),
+            height=ry * rng.uniform(1.55, 1.80),
+            yaw_rad=ang, pitch_rad=pitch,
+            cell_idx=(seed + i) % 4,
+            shade_tint=(0.82, 0.76, 0.88),
+            flip_u=(i % 2 == 1)
+        )
+
+    # 2. Mid-Crown Shingled Perimeter & Camera-Facing Cards (7 cards in `bm_lit`)
+    for i in range(7):
+        ang = rot_off + 0.35 + (i / 7.0) * 2.0 * math.pi + rng.uniform(-0.14, 0.14)
+        ca, sa = math.cos(ang), math.sin(ang)
+        px = cx + ca * rx * 0.58
+        pz = cz + sa * rz * 0.58
+        py = cy + ry * rng.uniform(0.05, 0.24)
+        pitch = rng.uniform(0.48, 0.74)
+        add_curved_alpha_leaf_card(
+            bm_lit, uv_lit, col_lit,
+            px, py, pz, cx, cy - 0.30 * ry, cz,
+            width=avg_r * rng.uniform(1.62, 1.88),
+            height=ry * rng.uniform(1.52, 1.76),
+            yaw_rad=ang, pitch_rad=pitch,
+            cell_idx=(seed + i + 1) % 4,
+            shade_tint=(0.96, 0.95, 0.98),
+            flip_u=(i % 2 == 0)
+        )
+
+    # 3. Upper Sunlit Crown Cap Cards (4 cards in `bm_lit`, tilted strongly skyward for isometric camera)
+    for i in range(4):
+        ang = rot_off + 0.75 + (i / 4.0) * 2.0 * math.pi + rng.uniform(-0.18, 0.18)
+        ca, sa = math.cos(ang), math.sin(ang)
+        px = cx + ca * rx * 0.28
+        pz = cz + sa * rz * 0.28
+        py = cy + ry * rng.uniform(0.42, 0.58)
+        pitch = rng.uniform(0.84, 1.12)
+        add_curved_alpha_leaf_card(
+            bm_lit, uv_lit, col_lit,
+            px, py, pz, cx, cy - 0.25 * ry, cz,
+            width=avg_r * rng.uniform(1.55, 1.80),
+            height=ry * rng.uniform(1.45, 1.68),
+            yaw_rad=ang, pitch_rad=pitch,
+            cell_idx=0 if (i % 2 == 0) else 3,
+            shade_tint=(1.04, 1.02, 1.04),
+            flip_u=(i % 2 == 1)
+        )
 
 
 def add_chiseled_rift_rock_ledge(
     bm_rock_dark, bm_rock_top, gx, gy, gz, rad_x, rad_z, height,
-    rot_y_deg=0.0, seed=99, bm_fol_lit=None, bm_fol_shade=None, bm_rune=None
+    rot_y_deg=0.0, seed=99, bm_grass=None, bm_rune=None
 ):
     rng = random.Random(seed)
     segs = 8
@@ -185,7 +331,7 @@ def add_chiseled_rift_rock_ledge(
         top_b = bm_rock_top.verts.new(c_mid + (rot @ mathutils.Vector((lx * 0.92, ly * 0.92, 0.0))))
         top_t = bm_rock_top.verts.new(c_top + (rot @ mathutils.Vector((lx * 0.78, ly * 0.78, 0.0))))
         top_verts.append((top_b, top_t))
-        wp = c_top + (rot @ mathutils.Vector((lx * 0.80, ly * 0.80, 0.0)))
+        wp = c_top + (rot @ mathutils.Vector((lx * 0.72, ly * 0.72, 0.0)))
         rim_world_pts.append((wp.x, wp.z, -wp.y))
 
     dark_faces = []
@@ -202,16 +348,9 @@ def add_chiseled_rift_rock_ledge(
     assign_world_uvs(bm_rock_dark, dark_faces, tile_scale=0.24)
     assign_world_uvs(bm_rock_top, top_faces, tile_scale=0.24)
 
-    if bm_fol_lit is not None and bm_fol_shade is not None:
-        add_lol_serrated_cone_skirt(
-            bm_fol_lit, bm_fol_shade,
-            gx, gy + height - 0.04, gz,
-            r_outer_x=rad_x * 0.82, r_outer_z=rad_z * 0.82,
-            r_inner_ratio=0.72, h_cone=0.26, tip_drop=0.24,
-            n_tips=8, rot_deg=rot_y_deg, seed=seed + 31
-        )
+    if bm_grass is not None:
         for rx_p, ry_p, rz_p in rim_world_pts[::2]:
-            add_lol_grass_tuft_cluster(bm_fol_lit, bm_fol_shade, rx_p, ry_p - 0.04, rz_p, scale=0.88, n_blades=6, seed=seed + int(abs(rx_p * 13)))
+            add_lol_alpha_grass_tuft(bm_grass, rx_p, ry_p - 0.02, rz_p, scale=0.88, seed=seed + int(abs(rx_p * 13)))
 
     if bm_rune is not None:
         r_ang = math.radians(rot_y_deg)
@@ -339,346 +478,13 @@ def add_sculpted_foliage_cloud(bm, gx, gy, gz, rx, ry, rz, subdiv=1, seed=42, ti
     assign_world_uvs(bm, faces, tile_scale=tile_scale)
 
 
-def add_lol_serrated_cone_skirt(
-    bm_outer, bm_under_shade, cx, cy_base, cz,
-    r_outer_x, r_outer_z, r_inner_ratio=0.58, h_cone=1.35, tip_drop=0.38,
-    n_tips=7, apex_lean_x=0.0, apex_lean_z=0.0, rot_deg=0.0, seed=42
-):
-    """
-    Summoner's Rift Layered Pine Bough Skirt (`Captura de Tela 2026-11-23 às 19.03.45.png`):
-    Note Blender UV.v convention: v = 0.90 is TOP of PNG (shadow tuck under upper bough),
-    v = 0.08 is BOTTOM of PNG (warm sunlit chartreuse hanging tip)!
-    """
-    rng = random.Random(seed)
-    total_pts = n_tips * 2
-    rot_rad = math.radians(rot_deg)
-
-    uv_out = bm_outer.loops.layers.uv.active or bm_outer.loops.layers.uv.new("UVMap")
-    uv_shd = bm_under_shade.loops.layers.uv.active or bm_under_shade.loops.layers.uv.new("UVMap")
-
-    v_apex = bm_outer.verts.new(gpos(cx + apex_lean_x, cy_base + h_cone, cz + apex_lean_z))
-    v_under_center = bm_under_shade.verts.new(gpos(cx + apex_lean_x * 0.25, cy_base + h_cone * 0.32, cz + apex_lean_z * 0.25))
-
-    mid_verts = []
-    rim_out_verts = []
-    rim_shd_verts = []
-    rim_uvs = []
-    mid_uvs = []
-
-    for k in range(total_pts):
-        is_tip = (k % 2 == 0)
-        frac = float(k) / float(total_pts)
-        ang = frac * 2.0 * math.pi + rot_rad + rng.uniform(-0.06, 0.06)
-        ca, sa = math.cos(ang), math.sin(ang)
-
-        jit_r = rng.uniform(0.90, 1.12)
-        jit_y = rng.uniform(0.86, 1.16)
-
-        if is_tip:
-            rx = r_outer_x * jit_r
-            rz = r_outer_z * jit_r
-            ry = cy_base - tip_drop * jit_y
-        else:
-            rx = r_outer_x * r_inner_ratio * jit_r
-            rz = r_outer_z * r_inner_ratio * jit_r
-            ry = cy_base + tip_drop * 0.58 * jit_y
-
-        m_ratio = 0.48 if is_tip else 0.40
-        mx = cx + apex_lean_x * 0.50 + ca * (r_outer_x * m_ratio * jit_r)
-        mz = cz + apex_lean_z * 0.50 + sa * (r_outer_z * m_ratio * jit_r)
-        my = cy_base + h_cone * (0.46 if is_tip else 0.54)
-
-        wx = cx + ca * rx
-        wz = cz + sa * rz
-
-        mid_verts.append(bm_outer.verts.new(gpos(mx, my, mz)))
-        rim_out_verts.append(bm_outer.verts.new(gpos(wx, ry, wz)))
-        rim_shd_verts.append(bm_under_shade.verts.new(gpos(wx * 0.94 + cx * 0.06, ry + 0.03, wz * 0.94 + cz * 0.06)))
-
-        u_coord = float(k) / float(total_pts)
-        mid_uvs.append((u_coord, 0.55))
-        rim_uvs.append((u_coord, 0.06 if is_tip else 0.36))
-
-    out_faces = []
-    shd_faces = []
-    for k in range(total_pts):
-        nk = (k + 1) % total_pts
-        u0 = mid_uvs[k][0]
-        u1 = 1.0 if nk == 0 else mid_uvs[nk][0]
-
-        f_top = bm_outer.faces.new((mid_verts[k], mid_verts[nk], v_apex))
-        f_skirt = bm_outer.faces.new((rim_out_verts[k], rim_out_verts[nk], mid_verts[nk], mid_verts[k]))
-        out_faces.extend([f_top, f_skirt])
-
-        f_top.loops[0][uv_out].uv = (u0, 0.55)
-        f_top.loops[1][uv_out].uv = (u1, 0.55)
-        f_top.loops[2][uv_out].uv = (0.5 * (u0 + u1), 0.90)
-
-        f_skirt.loops[0][uv_out].uv = (u0, rim_uvs[k][1])
-        f_skirt.loops[1][uv_out].uv = (u1, rim_uvs[nk][1])
-        f_skirt.loops[2][uv_out].uv = (u1, 0.55)
-        f_skirt.loops[3][uv_out].uv = (u0, 0.55)
-
-        f_under = bm_under_shade.faces.new((rim_shd_verts[nk], rim_shd_verts[k], v_under_center))
-        shd_faces.append(f_under)
-        for loop in f_under.loops:
-            loop[uv_shd].uv = (0.5, 0.92)
-
-    bmesh.ops.recalc_face_normals(bm_outer, faces=out_faces)
-    bmesh.ops.recalc_face_normals(bm_under_shade, faces=shd_faces)
-
-
-def add_lol_rift_pine_tree(bm_wood, bm_fol_lit, bm_fol_shade, gx, gy, gz, scale=1.0, seed=101):
-    rng = random.Random(seed)
-    lean_x = rng.uniform(-0.35, 0.35) * scale
-    lean_z = rng.uniform(-0.35, 0.35) * scale
-    if abs(lean_x) < 0.14 * scale:
-        lean_x = 0.24 * scale
-
-    trunk_pts = [
-        (gx, gy - 0.10, gz),
-        (gx + lean_x * 0.25, gy + 0.85 * scale, gz + lean_z * 0.25),
-        (gx + lean_x * 0.60, gy + 2.20 * scale, gz + lean_z * 0.60),
-    ]
-    add_swept_tube(bm_wood, trunk_pts, 0.34 * scale, 0.34 * scale, sides=8, radii_scale=[1.35, 0.85, 0.45])
-
-    tiers = [
-        (0.45, 2.35, 0.56, 1.55, 0.44, 8, False),
-        (1.05, 2.08, 0.56, 1.50, 0.42, 8, True),
-        (1.68, 1.78, 0.55, 1.45, 0.38, 7, False),
-        (2.32, 1.46, 0.55, 1.40, 0.35, 7, True),
-        (2.96, 1.12, 0.54, 1.35, 0.30, 6, True),
-        (3.58, 0.76, 0.52, 1.55, 0.26, 6, True),
-    ]
-    for idx, (ty, r_out, r_in_rat, h_c, t_drop, n_t, use_lit) in enumerate(tiers):
-        t_frac = idx / float(len(tiers) - 1)
-        cx = gx + lean_x * (t_frac ** 1.3)
-        cz = gz + lean_z * (t_frac ** 1.3)
-        hook_mult = 0.85 if idx == len(tiers) - 1 else 0.42
-        ap_x = lean_x * hook_mult * (0.4 + t_frac)
-        ap_z = lean_z * hook_mult * (0.4 + t_frac)
-        outer_bm = bm_fol_lit if use_lit else bm_fol_shade
-        add_lol_serrated_cone_skirt(
-            outer_bm, bm_fol_shade,
-            cx, gy + ty * scale, cz,
-            r_outer_x=r_out * scale, r_outer_z=r_out * scale,
-            r_inner_ratio=r_in_rat, h_cone=h_c * scale, tip_drop=t_drop * scale,
-            n_tips=n_t, apex_lean_x=ap_x, apex_lean_z=ap_z,
-            rot_deg=idx * 25.0 + rng.uniform(-8.0, 8.0),
-            seed=seed + idx * 17
-        )
-
-    num_sub = 2 if scale < 1.05 else 3
-    base_ang = rng.uniform(0.0, 2.0 * math.pi)
-    for s_i in range(num_sub):
-        s_ang = base_ang + s_i * (2.0 * math.pi / float(num_sub)) + rng.uniform(-0.35, 0.35)
-        dist = rng.uniform(1.40, 1.92) * scale
-        sx = gx + math.cos(s_ang) * dist
-        sz = gz + math.sin(s_ang) * dist
-        sub_sc = rng.uniform(0.48, 0.64) * scale
-        sub_lean_x = math.cos(s_ang) * 0.32 * sub_sc
-        sub_lean_z = math.sin(s_ang) * 0.32 * sub_sc
-        for st_idx, (sty, sr_out, sh_c, st_drop, sn_t, s_lit) in enumerate([
-            (0.25, 1.72, 1.25, 0.32, 7, False),
-            (0.85, 1.36, 1.22, 0.28, 6, True),
-            (1.45, 0.96, 1.22, 0.24, 6, True),
-            (2.02, 0.58, 1.32, 0.20, 5, True),
-        ]):
-            add_lol_serrated_cone_skirt(
-                bm_fol_lit if s_lit else bm_fol_shade, bm_fol_shade,
-                sx + sub_lean_x * (st_idx * 0.3), gy + sty * sub_sc, sz + sub_lean_z * (st_idx * 0.3),
-                r_outer_x=sr_out * sub_sc, r_outer_z=sr_out * sub_sc,
-                r_inner_ratio=0.56, h_cone=sh_c * sub_sc, tip_drop=st_drop * sub_sc,
-                n_tips=sn_t, apex_lean_x=sub_lean_x * 0.55, apex_lean_z=sub_lean_z * 0.55,
-                rot_deg=st_idx * 27.0, seed=seed + 200 + s_i * 31 + st_idx
-            )
-
-    for g_i in range(4):
-        ga = base_ang + g_i * 1.57 + 0.4
-        add_lol_grass_tuft_cluster(
-            bm_fol_lit, bm_fol_shade,
-            gx + math.cos(ga) * 1.75 * scale, gy, gz + math.sin(ga) * 1.75 * scale,
-            scale=0.88 * scale, n_blades=7, seed=seed + 400 + g_i
-        )
-
-
-def add_lol_3d_feathered_leaf_fan(bm, uv_layer, cx, cy, cz, dir_x, dir_z, width=0.85, length=0.78, droop=0.52, uv_v_top=0.72, uv_v_bot=0.22):
-    """
-    3D Curved 3-Point Feathered Sakura Leaf-Cluster Shell (`1795472939345-download.png`):
-    Builds a cupped, drooping fan of 3 pointed leaf clusters that juts out from the canopy
-    surface and droops downward so the tree silhouette has real 3D jagged sakura leaf tips
-    around the crown, mid-tiers, and hanging hem — with ZERO radial umbrella creases!
-    """
-    tx, tz = -dir_z, dir_x  # horizontal tangent perpendicular to outward direction
-    # Top root points anchored inside the canopy lobe
-    v_r0 = bm.verts.new(gpos(cx - tx * width * 0.38, cy, cz - tz * width * 0.38))
-    v_r1 = bm.verts.new(gpos(cx, cy + 0.06 * length, cz))
-    v_r2 = bm.verts.new(gpos(cx + tx * width * 0.38, cy, cz + tz * width * 0.38))
-
-    # Mid-belly swell curving outward and slightly down
-    mx = cx + dir_x * (length * 0.55)
-    mz = cz + dir_z * (length * 0.55)
-    my = cy - droop * 0.35
-    v_m0 = bm.verts.new(gpos(mx - tx * width * 0.54, my - 0.04, mz - tz * width * 0.54))
-    v_m1 = bm.verts.new(gpos(mx - tx * width * 0.16, my + 0.05, mz - tz * width * 0.16))
-    v_m2 = bm.verts.new(gpos(mx + tx * width * 0.16, my + 0.05, mz + tz * width * 0.16))
-    v_m3 = bm.verts.new(gpos(mx + tx * width * 0.54, my - 0.04, mz + tz * width * 0.54))
-
-    # 3 distinct pointed sakura leaf tips hanging down at the outer rim + 2 recessed V-notches
-    ox = cx + dir_x * length
-    oz = cz + dir_z * length
-    oy = cy - droop
-    v_t0 = bm.verts.new(gpos(ox - tx * width * 0.44, oy - 0.04 * length, oz - tz * width * 0.44))
-    v_n0 = bm.verts.new(gpos(cx + dir_x * (length * 0.72) - tx * width * 0.20, cy - droop * 0.58, cz + dir_z * (length * 0.72) - tz * width * 0.20))
-    v_t1 = bm.verts.new(gpos(ox + dir_x * (0.12 * length), oy - 0.12 * length, oz + dir_z * (0.12 * length)))
-    v_n1 = bm.verts.new(gpos(cx + dir_x * (length * 0.72) + tx * width * 0.20, cy - droop * 0.58, cz + dir_z * (length * 0.72) + tz * width * 0.20))
-    v_t2 = bm.verts.new(gpos(ox + tx * width * 0.44, oy - 0.04 * length, oz + tz * width * 0.44))
-
-    uv_v_mid = 0.5 * (uv_v_top + uv_v_bot)
-    uv_v_notch = uv_v_bot + 0.35 * (uv_v_top - uv_v_bot)
-
-    faces = [
-        bm.faces.new((v_m0, v_m1, v_r1, v_r0)),
-        bm.faces.new((v_m1, v_m2, v_r1)),
-        bm.faces.new((v_m2, v_m3, v_r2, v_r1)),
-        bm.faces.new((v_t0, v_n0, v_m1, v_m0)),
-        bm.faces.new((v_n0, v_t1, v_m2, v_m1)),
-        bm.faces.new((v_t1, v_n1, v_m2)),
-        bm.faces.new((v_n1, v_t2, v_m3, v_m2)),
-    ]
-    uv_map = {
-        v_r0: (0.20, uv_v_top),
-        v_r1: (0.50, uv_v_top),
-        v_r2: (0.80, uv_v_top),
-        v_m0: (0.15, uv_v_mid),
-        v_m1: (0.38, uv_v_mid),
-        v_m2: (0.62, uv_v_mid),
-        v_m3: (0.85, uv_v_mid),
-        v_t0: (0.18, uv_v_bot),
-        v_n0: (0.35, uv_v_notch),
-        v_t1: (0.50, max(0.04, uv_v_bot - 0.05)),
-        v_n1: (0.65, uv_v_notch),
-        v_t2: (0.82, uv_v_bot),
-    }
-    for f in faces:
-        for loop in f.loops:
-            loop[uv_layer].uv = uv_map[loop.vert]
-    return faces
-
-
-def add_lol_sculpted_blossom_lobe(bm_lit, bm_shade, cx, cy, cz, rx, ry, rz, uv_v_min=0.18, uv_v_max=0.92, seed=42):
-    """
-    Smooth, High-Subdivision Sculpted Blossom Lobe + Shingled 3D Feathered Leaf Fans
-    (matching the Devoted Studios Spirit Blossom reference `1795472939345-download.png`):
-    1. Builds an isotropic `subdiv = 3` sculpted icosphere cloud dome (ZERO radial umbrella spokes!)
-       with a plump rounded top and undercut lower shadow belly.
-    2. Shingles 3 concentric rings of 3D curved 3-tip feathered sakura leaf fans (`add_lol_3d_feathered_leaf_fan`)
-       around the upper shoulder, equator, and drooping lower hem so real 3D pointed sakura leaf clusters
-       jut out around the entire silhouette and across the canopy face!
-    """
-    rng = random.Random(seed)
-    uv_lit = bm_lit.loops.layers.uv.active or bm_lit.loops.layers.uv.new("UVMap")
-    uv_shd = bm_shade.loops.layers.uv.active or bm_shade.loops.layers.uv.new("UVMap")
-
-    # 1. Smooth isotropic subdiv=3 icosphere volume (split into upper lit dome & lower shade belly)
-    temp_bm = bmesh.new()
-    bmesh.ops.create_icosphere(temp_bm, subdivisions=3, radius=1.0)
-    ph1 = (seed * 1.31) % 6.28
-    ph2 = (seed * 2.73) % 6.28
-
-    vert_map_lit = {}
-    vert_map_shd = {}
-    lit_faces = []
-    shd_faces = []
-
-    def get_sculpted_co_and_uv(v):
-        nx, ny, nz = v.co.x, v.co.y, v.co.z
-        # Soft organic leaf-pillow undulations (no radial spokes!)
-        puff = (
-            1.0
-            + 0.10 * math.sin(nx * 3.4 + ph1) * math.cos(ny * 3.4 + ph2)
-            + 0.06 * math.cos(nz * 4.2 - nx * 2.8)
-        )
-        # Plump rounded upper dome, gently tucked lower underside
-        z_shape = (1.02 if nz >= 0.0 else 0.72)
-        # Flared skirt around the lower equator (-0.45 < nz < 0.15)
-        eq_flare = 1.0 + 0.12 * max(0.0, 1.0 - abs(nz + 0.12) * 2.4)
-        wx = cx + nx * rx * puff * eq_flare
-        wz = cz - ny * rz * puff * eq_flare
-        wy = cy + nz * ry * puff * z_shape
-        # Seamless horizontal UV.u from mirrored angle, vertical UV.v from top (uv_v_max) to bottom (uv_v_min)
-        ang = math.atan2(ny, nx)  # -pi..pi
-        u_wrap = abs(ang) / math.pi  # 0..1->0 mirror wrap = 100% seamless with zero atan2 seam!
-        h_t = max(0.0, min(1.0, (nz + 0.85) / 1.85))
-        v_coord = uv_v_min + h_t * (uv_v_max - uv_v_min)
-        return gpos(wx, wy, wz), (u_wrap, v_coord)
-
-    for f in temp_bm.faces:
-        avg_nz = sum(v.co.z for v in f.verts) / 3.0
-        is_lit_face = (avg_nz >= -0.22)
-        target_bm = bm_lit if is_lit_face else bm_shade
-        target_uv = uv_lit if is_lit_face else uv_shd
-        v_map = vert_map_lit if is_lit_face else vert_map_shd
-        f_list = lit_faces if is_lit_face else shd_faces
-
-        new_f_verts = []
-        new_f_uvs = []
-        for v in f.verts:
-            co, uv_c = get_sculpted_co_and_uv(v)
-            if v.index not in v_map:
-                v_map[v.index] = target_bm.verts.new(co)
-            new_f_verts.append(v_map[v.index])
-            new_f_uvs.append(uv_c)
-        nf = target_bm.faces.new(new_f_verts)
-        for loop, uv_c in zip(nf.loops, new_f_uvs):
-            loop[target_uv].uv = uv_c
-        f_list.append(nf)
-
-    temp_bm.free()
-
-    # 2. Shingle 3 concentric rings of 3D Feathered Sakura Leaf Fans over the dome & silhouette rim!
-    ring_configs = [
-        # (n_fans, lat_z, rad_mult, fan_w, fan_len, fan_droop, v_top, v_bot, use_lit)
-        (8,  0.48, 0.72, 0.72, 0.56, 0.36, min(0.95, uv_v_max), 0.52, True),
-        (11, 0.12, 0.94, 0.82, 0.66, 0.48, 0.72, 0.30, True),
-        (13, -0.24, 0.96, 0.86, 0.72, 0.58, 0.48, max(0.06, uv_v_min - 0.06), False),
-    ]
-    avg_r = 0.5 * (rx + rz)
-    for r_i, (n_fans, lat_z, r_mult, fw, flen, fdrp, vt, vb, use_lit) in enumerate(ring_configs):
-        t_bm = bm_lit if use_lit else bm_shade
-        t_uv = uv_lit if use_lit else uv_shd
-        f_list = lit_faces if use_lit else shd_faces
-        for k in range(n_fans):
-            ang = ((k + (0.5 if r_i % 2 else 0.0)) / float(n_fans)) * 2.0 * math.pi + rng.uniform(-0.10, 0.10)
-            ca, sa = math.cos(ang), math.sin(ang)
-            fx = cx + ca * rx * r_mult
-            fz = cz + sa * rz * r_mult
-            fy = cy + lat_z * ry + rng.uniform(-0.06, 0.06) * ry
-            sc_f = (avg_r / 1.65) * rng.uniform(0.90, 1.12)
-            f_list.extend(
-                add_lol_3d_feathered_leaf_fan(
-                    t_bm, t_uv,
-                    fx, fy, fz, ca, sa,
-                    width=fw * sc_f, length=flen * sc_f, droop=fdrp * sc_f,
-                    uv_v_top=vt, uv_v_bot=vb
-                )
-            )
-
-    if lit_faces:
-        bmesh.ops.recalc_face_normals(bm_lit, faces=lit_faces)
-    if shd_faces:
-        bmesh.ops.recalc_face_normals(bm_shade, faces=shd_faces)
-
+# ═══════════════════════════════════════════════════════════════════════════
+# 7 DISTINCT TREE BODY-SHAPE ARCHETYPES (NO TWO TREES SHARE THE SAME SILHOUETTE!)
+# ═══════════════════════════════════════════════════════════════════════════
 
 def add_shimenawa_sacred_stone(bm_stone_body, bm_stone_hi, bm_gold, bm_white, gx, gy, gz, scale=1.0, rot_deg=0.0):
-    """
-    Sacred Shimenawa Rope-Bound Boundary Stone at the base of the Spirit Blossom tree
-    (matching the two rope-wrapped stones on the left and right of `1795472939345-download.png`).
-    """
     add_chiseled_block(bm_stone_body, bm_stone_hi, gx, gy, gz, 0.62 * scale, 0.78 * scale, 0.54 * scale, rot_y_deg=rot_deg, bevel_inset=0.72)
-    # Thick golden-straw shimenawa rope belt around the stone waist
     add_cylinder(bm_gold, gx, gy + 0.42 * scale, gz, 0.36 * scale, 0.36 * scale, 0.11 * scale, 10, rot_y_deg=rot_deg)
-    # 3 hanging straw/paper tassels on the front of the rope belt
     for t_i in [-1, 0, 1]:
         ang = math.radians(rot_deg + t_i * 28.0)
         tx = gx + math.sin(ang) * 0.35 * scale
@@ -686,288 +492,354 @@ def add_shimenawa_sacred_stone(bm_stone_body, bm_stone_hi, bm_gold, bm_white, gx
         add_box(bm_gold if t_i != 0 else bm_white, tx, gy + 0.24 * scale, tz, 0.07 * scale, 0.20 * scale, 0.05 * scale, rot_y_deg=rot_deg, taper_top=0.65)
 
 
-def add_single_spirit_blossom_tree_body(
-    bm_wood, bm_blossom_lit, bm_blossom_shade, bm_fol_lit, bm_fol_shade,
-    bm_iron, bm_flw_white, bm_flw_pink,
-    gx, gy, gz, scale=1.0, lean_dir_x=-1.0, with_hollow_cave=True, with_shide=True, seed=101
+def add_tree_shape_elder_hollow_shrine(
+    bm_stone_body, bm_stone_hi, bm_wood, bm_blossom_lit, bm_blossom_shade,
+    bm_grass, bm_iron, bm_gold, bm_flw_white, bm_flw_pink,
+    gx, gy, gz, scale=1.0, seed=104
 ):
     """
-    Builds one complete Riot Games / Devoted Studios Spirit Blossom Tree (`1795472939345-download.png`):
-    - When `with_hollow_cave=True` (the central mother tree):
-      - High arched wishbone root legs straddling a dark recessed hollow cave (`bm_iron`) at ground level.
-      - 7 long sinuous surface root tendrils snaking out over the rock ledges (`1.6m..2.3m`),
-        with 3D mossy green strips (`bm_fol_shade`) running along the upper root ridges.
-      - Muscular S-curved trunk leaning left-then-up into 4 sweeping boughs.
-      - Hanging sacred cord with 3 dangling white paper shide talismans (`bm_flw_white` + `bm_flw_pink`)
-        under the left bough!
-      - Deep, asymmetric 6-lobe cascading feathered sakura canopy (`add_lol_sculpted_blossom_lobe`):
-        high rounded top crown (`UV.v = 0.55..0.95`), broad diagonal mid-cascade shoulders (`UV.v = 0.25..0.75`),
-        and low drooping left/right feather skirts (`UV.v = 0.08..0.52`).
+    BODY SHAPE 1 (Used ONCE at East Windmill / Apothecary Shrine `(23.2, 0.0, -0.8)`):
+    The Ancient Hollow-Root Spirit Blossom Shrine Tree (`1795472939345-download.png` center tree):
+    - Stepped mossy chiseled rock ledge base + shimenawa rope-bound stone.
+    - 3 arched wishbone root legs straddling a dark hollow root cave (`bm_iron`).
+    - Hanging sacred cord with 3 white paper shide talisman streamers under the left bough.
+    - Asymmetric 4-bouquet cascading sakura alpha-card canopy.
     """
     rng = random.Random(seed)
-    lx = lean_dir_x
+    add_chiseled_rift_rock_ledge(bm_stone_body, bm_stone_hi, gx, gy, gz, 2.35 * scale, 1.85 * scale, 0.58 * scale, rot_y_deg=14.0, seed=seed, bm_grass=bm_grass)
+    add_chiseled_rift_rock_ledge(bm_stone_body, bm_stone_hi, gx - 1.95 * scale, gy, gz + 0.55 * scale, 1.45 * scale, 1.20 * scale, 0.34 * scale, rot_y_deg=-18.0, seed=seed + 1, bm_grass=bm_grass)
+    add_shimenawa_sacred_stone(bm_stone_body, bm_stone_hi, bm_gold, bm_flw_white, gx + 1.65 * scale, gy + 0.42 * scale, gz + 0.75 * scale, scale=0.85 * scale, rot_deg=18.0)
 
-    if with_hollow_cave:
-        # 1. Dark recessed hollow cave dome underneath the wishbone root arch (`RGB(42,34,39)` in reference!)
-        add_cylinder(bm_iron, gx, gy + 0.02, gz + 0.05 * scale, 0.62 * scale, 0.38 * scale, 1.05 * scale, 10)
+    by = gy + 0.54 * scale
+    add_cylinder(bm_iron, gx, by + 0.02, gz + 0.05 * scale, 0.58 * scale, 0.36 * scale, 1.02 * scale, 10)
 
-        # 2. Three massive arched wishbone root buttress legs meeting at the trunk waist (y = 1.48 * scale)
-        waist_x = gx + lx * 0.18 * scale
-        waist_y = gy + 1.48 * scale
-        waist_z = gz
-        arch_legs = [
-            # Left front root arch leg
-            [
-                (gx - 1.15 * scale, gy - 0.05, gz + 0.45 * scale),
-                (gx - 0.88 * scale, gy + 0.55 * scale, gz + 0.32 * scale),
-                (gx - 0.52 * scale, gy + 1.12 * scale, gz + 0.15 * scale),
-                (waist_x, waist_y, waist_z),
-            ],
-            # Right front root arch leg
-            [
-                (gx + 1.10 * scale, gy - 0.05, gz + 0.42 * scale),
-                (gx + 0.82 * scale, gy + 0.52 * scale, gz + 0.28 * scale),
-                (gx + 0.44 * scale, gy + 1.08 * scale, gz + 0.14 * scale),
-                (waist_x, waist_y, waist_z),
-            ],
-            # Back support root arch leg
-            [
-                (gx + 0.05 * scale, gy - 0.05, gz - 0.95 * scale),
-                (gx + 0.08 * scale, gy + 0.62 * scale, gz - 0.58 * scale),
-                (waist_x, waist_y, waist_z),
-            ],
+    waist_x, waist_y, waist_z = gx - 0.18 * scale, by + 1.45 * scale, gz
+    for leg_pts in [
+        [(gx - 1.12 * scale, by - 0.05, gz + 0.42 * scale), (gx - 0.82 * scale, by + 0.55 * scale, gz + 0.28 * scale), (waist_x, waist_y, waist_z)],
+        [(gx + 1.08 * scale, by - 0.05, gz + 0.38 * scale), (gx + 0.78 * scale, by + 0.52 * scale, gz + 0.24 * scale), (waist_x, waist_y, waist_z)],
+        [(gx + 0.04 * scale, by - 0.05, gz - 0.92 * scale), (gx + 0.06 * scale, by + 0.60 * scale, gz - 0.54 * scale), (waist_x, waist_y, waist_z)],
+    ]:
+        add_swept_tube(bm_wood, leg_pts, 0.28 * scale, 0.28 * scale, sides=8, radii_scale=[0.75, 0.95, 1.12])
+
+    for r_i in range(6):
+        ang = math.radians(-150.0 + r_i * 58.0 + rng.uniform(-10.0, 10.0))
+        dx, dz = math.cos(ang), math.sin(ang)
+        t_pts = [
+            (gx + dx * 0.65 * scale, by + 0.52 * scale, gz + dz * 0.65 * scale),
+            (gx + dx * 1.25 * scale, by + 0.08 * scale, gz + dz * 1.25 * scale),
+            (gx + dx * 1.90 * scale, by - 0.18 * scale, gz + dz * 1.90 * scale),
         ]
-        for leg_pts in arch_legs:
-            add_swept_tube(bm_wood, leg_pts, 0.30 * scale, 0.30 * scale, sides=8, radii_scale=[0.75, 0.95, 1.05, 1.15])
-            # Mossy green streak hugging the top ridge of the root arch (`1795472939345-download.png`)
-            moss_pts = [(p[0], p[1] + 0.08 * scale, p[2]) for p in leg_pts[:3]]
-            add_swept_tube(bm_fol_shade, moss_pts, 0.12 * scale, 0.06 * scale, sides=6, radii_scale=[0.6, 1.0, 0.7])
+        add_swept_tube(bm_wood, t_pts, 0.14 * scale, 0.14 * scale, sides=6, radii_scale=[1.0, 0.55, 0.14])
 
-        # 3. 7 long sinuous snaking surface root tendrils curling down over the rock steps
-        for r_i in range(7):
-            ang = math.radians(-155.0 + r_i * 52.0 + rng.uniform(-10.0, 10.0))
-            dx, dz = math.cos(ang), math.sin(ang)
-            px_t, pz_t = -dz, dx
-            s_curve = (0.28 if (r_i % 2 == 0) else -0.28) * scale
-            tendril_pts = [
-                (gx + dx * 0.68 * scale, gy + 0.58 * scale, gz + dz * 0.68 * scale),
-                (gx + dx * 1.15 * scale + px_t * s_curve * 0.6, gy + 0.14 * scale, gz + dz * 1.15 * scale + pz_t * s_curve * 0.6),
-                (gx + dx * 1.62 * scale - px_t * s_curve * 0.5, gy - 0.04 * scale, gz + dz * 1.62 * scale - pz_t * s_curve * 0.5),
-                (gx + dx * 2.05 * scale + px_t * s_curve * 0.3, gy - 0.22 * scale, gz + dz * 2.05 * scale + pz_t * s_curve * 0.3),
-            ]
-            add_swept_tube(bm_wood, tendril_pts, 0.15 * scale, 0.15 * scale, sides=7, radii_scale=[1.0, 0.68, 0.36, 0.12])
+    trunk_pts = [
+        (waist_x, waist_y - 0.12 * scale, waist_z),
+        (gx - 0.52 * scale, by + 2.25 * scale, gz + 0.10 * scale),
+        (gx - 0.70 * scale, by + 3.05 * scale, gz + 0.04 * scale),
+        (gx - 0.35 * scale, by + 3.85 * scale, gz - 0.06 * scale),
+    ]
+    add_swept_tube(bm_wood, trunk_pts, 0.42 * scale, 0.42 * scale, sides=10, radii_scale=[1.15, 0.94, 0.76, 0.54])
 
-        # 4. S-Curved Muscular Upper Trunk leaning left then curving up to crown fork
-        trunk_pts = [
-            (waist_x, waist_y - 0.15 * scale, waist_z),
-            (gx + lx * 0.48 * scale, gy + 2.25 * scale, gz + 0.12 * scale),
-            (gx + lx * 0.72 * scale, gy + 3.05 * scale, gz + 0.05 * scale),
-            (gx + lx * 0.42 * scale, gy + 3.85 * scale, gz - 0.08 * scale),
-        ]
-        add_swept_tube(bm_wood, trunk_pts, 0.44 * scale, 0.44 * scale, sides=10, radii_scale=[1.18, 0.96, 0.78, 0.56])
-    else:
-        # Smaller flanking companion Spirit Blossom tree trunk (curved S-bend with surface root flare)
-        trunk_pts = [
-            (gx, gy - 0.08, gz),
-            (gx + lx * 0.32 * scale, gy + 0.95 * scale, gz + 0.10 * scale),
-            (gx + lx * 0.68 * scale, gy + 1.95 * scale, gz + 0.05 * scale),
-            (gx + lx * 0.52 * scale, gy + 2.75 * scale, gz - 0.05 * scale),
-        ]
-        add_swept_tube(bm_wood, trunk_pts, 0.32 * scale, 0.32 * scale, sides=9, radii_scale=[1.38, 0.92, 0.72, 0.50])
-        for r_i in range(4):
-            ang = math.radians(r_i * 90.0 + 25.0)
-            dx, dz = math.cos(ang), math.sin(ang)
-            r_pts = [
-                (gx + dx * 0.15 * scale, gy + 0.75 * scale, gz + dz * 0.15 * scale),
-                (gx + dx * 0.68 * scale, gy + 0.12 * scale, gz + dz * 0.68 * scale),
-                (gx + dx * 1.25 * scale, gy - 0.06 * scale, gz + dz * 1.25 * scale),
-            ]
-            add_swept_tube(bm_wood, r_pts, 0.16 * scale, 0.16 * scale, sides=6, radii_scale=[1.0, 0.55, 0.16])
+    # Left bough + hanging white paper shide talisman streamers
+    bough_l = [(gx - 0.62 * scale, by + 2.85 * scale, gz + 0.08 * scale), (gx - 1.75 * scale, by + 2.95 * scale, gz + 0.36 * scale)]
+    add_swept_tube(bm_wood, bough_l, 0.19 * scale, 0.19 * scale, sides=7, radii_scale=[1.0, 0.45])
+    for t_frac in [0.28, 0.55, 0.82]:
+        tx_s = gx - (0.75 + t_frac * 0.85) * scale
+        tz_s = gz + (0.12 + t_frac * 0.22) * scale
+        ty_s = by + (2.82 - math.sin(t_frac * math.pi) * 0.28) * scale
+        add_box(bm_flw_pink, tx_s, ty_s - 0.08 * scale, tz_s, 0.08 * scale, 0.08 * scale, 0.06 * scale)
+        add_box(bm_flw_white, tx_s, ty_s - 0.38 * scale, tz_s, 0.11 * scale, 0.32 * scale, 0.04 * scale, taper_top=0.58)
 
-    top_x, top_y, top_z = trunk_pts[-1]
-
-    # 5. Hanging Sacred Cord & 3 White Paper Shide Talisman Streamers under the left bough (`1795472939345-download.png`)
-    if with_shide:
-        bough_left_pts = [
-            (gx + lx * 0.62 * scale, gy + 2.85 * scale, gz + 0.08 * scale),
-            (gx + lx * 1.35 * scale, gy + 3.05 * scale, gz + 0.28 * scale),
-            (gx + lx * 1.95 * scale, gy + 2.90 * scale, gz + 0.42 * scale),
-        ]
-        add_swept_tube(bm_wood, bough_left_pts, 0.20 * scale, 0.20 * scale, sides=7, radii_scale=[1.0, 0.72, 0.42])
-
-        cord_p0 = (gx + lx * 0.72 * scale, gy + 2.82 * scale, gz + 0.14 * scale)
-        cord_p1 = (gx + lx * 1.58 * scale, gy + 2.94 * scale, gz + 0.34 * scale)
-        cord_pts = []
-        for c_i in range(9):
-            t = c_i / 8.0
-            cx_c = cord_p0[0] + (cord_p1[0] - cord_p0[0]) * t
-            cz_c = cord_p0[2] + (cord_p1[2] - cord_p0[2]) * t
-            cy_c = cord_p0[1] + (cord_p1[1] - cord_p0[1]) * t - math.sin(t * math.pi) * 0.34 * scale
-            cord_pts.append((cx_c, cy_c, cz_c))
-        add_swept_tube(bm_iron, cord_pts, 0.022 * scale, 0.022 * scale, sides=5)
-
-        for t_frac in [0.25, 0.52, 0.78]:
-            tx_s = cord_p0[0] + (cord_p1[0] - cord_p0[0]) * t_frac
-            tz_s = cord_p0[2] + (cord_p1[2] - cord_p0[2]) * t_frac
-            ty_s = cord_p0[1] + (cord_p1[1] - cord_p0[1]) * t_frac - math.sin(t_frac * math.pi) * 0.34 * scale
-            # Crimson/pink knot tie + white folded paper shide streamer
-            add_box(bm_flw_pink, tx_s, ty_s - 0.08 * scale, tz_s, 0.08 * scale, 0.08 * scale, 0.06 * scale)
-            add_box(bm_flw_white, tx_s, ty_s - 0.40 * scale, tz_s, 0.11 * scale, 0.34 * scale, 0.04 * scale, taper_top=0.58)
-
-    # 6. Deep, Asymmetric Multi-Tiered Cascading Sakura Canopy Lobes (exact match to `1795472939345-download.png`!)
-    if with_hollow_cave:
-        # 6 overlapping sculpted blossom lobes forming the deep waterfall crown + left/right cascading skirts
-        canopy_lobes = [
-            # (dx, dy_from_top, dz, rx, ry, rz, uv_v_min, uv_v_max, seed_off)
-            # Tier 1: High Rounded Top Crown (warm dusty rose-mauve top leaves: UV.v = 0.55..0.95)
-            (0.05,  0.95, -0.10, 1.95, 1.38, 1.82, 0.54, 0.95, 11),
-            # Tier 2: Upper-Left & Upper-Right Cascading Shoulder Lobes (mid sakura-orchid leaves: UV.v = 0.28..0.78)
-            (lx * 1.15, 0.25,  0.30, 1.78, 1.26, 1.65, 0.30, 0.78, 23),
-            (-lx * 1.05, 0.32, 0.22, 1.68, 1.22, 1.58, 0.32, 0.80, 37),
-            (0.00,  0.35, -0.78, 1.75, 1.24, 1.52, 0.30, 0.76, 49),
-            # Tier 3: Low Drooping Left & Right Feather Skirts (rich orchid to dusky plum: UV.v = 0.08..0.52)
-            (lx * 1.88, -0.45, 0.42, 1.38, 1.08, 1.32, 0.08, 0.52, 61),
-            (-lx * 1.65, -0.28, 0.35, 1.32, 1.04, 1.26, 0.10, 0.54, 73),
-        ]
-    else:
-        # Twin-lobed cascading crown for the flanking companion blossom trees (`1795472939345-download.png` left & right trees)
-        canopy_lobes = [
-            (0.00, 0.55, 0.00, 1.55, 1.12, 1.48, 0.45, 0.94, 17),
-            (lx * 0.95, -0.05, 0.25, 1.32, 0.98, 1.26, 0.12, 0.65, 31),
-        ]
-
-    for dx_l, dy_l, dz_l, rx_l, ry_l, rz_l, vmin, vmax, s_off in canopy_lobes:
-        add_lol_sculpted_blossom_lobe(
+    tx_top, ty_top, tz_top = trunk_pts[-1]
+    for dx_b, dy_b, dz_b, rx_b, ry_b, rz_b, s_off in [
+        (0.10,  0.85, -0.10, 1.85, 1.35, 1.75, 11),
+        (-1.25, 0.15,  0.30, 1.65, 1.20, 1.55, 29),
+        (1.15,  0.25,  0.22, 1.55, 1.15, 1.48, 47),
+        (-1.85, -0.45, 0.42, 1.25, 0.98, 1.20, 67),
+    ]:
+        add_alpha_card_canopy_bouquet(
             bm_blossom_lit, bm_blossom_shade,
-            top_x + dx_l * scale, top_y + dy_l * scale, top_z + dz_l * scale,
-            rx=rx_l * scale, ry=ry_l * scale, rz=rz_l * scale,
-            uv_v_min=vmin, uv_v_max=vmax, seed=seed + s_off
+            tx_top + dx_b * scale, ty_top + dy_b * scale, tz_top + dz_b * scale,
+            rx=rx_b * scale, ry=ry_b * scale, rz=rz_b * scale, seed=seed + s_off
         )
 
 
-def add_lol_spirit_blossom_diorama(
-    bm_stone_body, bm_stone_hi, bm_wood, bm_blossom_lit, bm_blossom_shade,
-    bm_fol_lit, bm_fol_shade, bm_iron, bm_gold, bm_flw_white, bm_flw_pink,
-    gx, gy, gz, scale=1.0, seed=101
+def add_tree_shape_windswept_canal_bonsai(
+    bm_stone_body, bm_stone_hi, bm_wood, bm_blossom_lit, bm_blossom_shade, bm_grass,
+    gx, gy, gz, scale=1.0, seed=102
 ):
     """
-    Complete Riot Games / Devoted Studios Spirit Blossom Tree Diorama (`1795472939345-download.png`):
-    1. Stepped, mossy chiseled gray-slate rock outcrop base (NO square brick planter box!).
-    2. Central S-curved mother Spirit Blossom tree with open hollow root cave, 7 snaking root tendrils,
-       mossy root knees, hanging white paper shide talismans, and 6-lobe cascading feathered sakura canopy.
-    3. Flanking smaller companion Spirit Blossom trees on the stepped left/right rock wings.
-    4. Two sacred shimenawa rope-bound boundary stones & 3D mossy grass tufts tucked into the rock seams.
+    BODY SHAPE 2 (West Tavern Canal Terrace `(-25.8, 0.0, 10.2)`):
+    Low Windswept Horizontal S-Bend Bonsai Tree (completely distinct from Body Shape 1!):
+    - Single thick base trunk gripping a low flat rock slab, sweeping sharply horizontally
+      toward the canal (`+X = +2.1m`) before rising into 3 separated horizontal floating cloud shelves!
     """
-    # 1. Stepped chiseled mossy rock outcrop base (center terrace + left stepped wing + right stepped wing)
-    add_chiseled_rift_rock_ledge(
-        bm_stone_body, bm_stone_hi, gx, gy, gz,
-        rad_x=2.35 * scale, rad_z=1.85 * scale, height=0.62 * scale,
-        rot_y_deg=12.0, seed=seed + 1, bm_fol_lit=bm_fol_lit, bm_fol_shade=bm_fol_shade
-    )
-    add_chiseled_rift_rock_ledge(
-        bm_stone_body, bm_stone_hi, gx - 2.15 * scale, gy, gz + 0.55 * scale,
-        rad_x=1.65 * scale, rad_z=1.35 * scale, height=0.38 * scale,
-        rot_y_deg=-18.0, seed=seed + 2, bm_fol_lit=bm_fol_lit, bm_fol_shade=bm_fol_shade
-    )
-    add_chiseled_rift_rock_ledge(
-        bm_stone_body, bm_stone_hi, gx + 2.05 * scale, gy, gz - 0.35 * scale,
-        rad_x=1.75 * scale, rad_z=1.40 * scale, height=0.48 * scale,
-        rot_y_deg=24.0, seed=seed + 3, bm_fol_lit=bm_fol_lit, bm_fol_shade=bm_fol_shade
-    )
+    add_chiseled_rift_rock_ledge(bm_stone_body, bm_stone_hi, gx, gy, gz, 1.85 * scale, 1.65 * scale, 0.36 * scale, rot_y_deg=-22.0, seed=seed, bm_grass=bm_grass)
+    by = gy + 0.32 * scale
 
-    # 2. Central Mother Spirit Blossom Tree with hollow root cave & hanging shide talismans
-    add_single_spirit_blossom_tree_body(
-        bm_wood, bm_blossom_lit, bm_blossom_shade, bm_fol_lit, bm_fol_shade,
-        bm_iron, bm_flw_white, bm_flw_pink,
-        gx, gy + 0.58 * scale, gz, scale=scale * 0.96,
-        lean_dir_x=-1.0, with_hollow_cave=True, with_shide=True, seed=seed + 10
-    )
+    # Dramatic horizontal S-sweep trunk leaning out toward the canal (+X)
+    trunk_pts = [
+        (gx - 0.35 * scale, by - 0.08, gz),
+        (gx + 0.45 * scale, by + 0.85 * scale, gz + 0.25 * scale),
+        (gx + 1.45 * scale, by + 1.55 * scale, gz + 0.42 * scale),
+        (gx + 1.95 * scale, by + 2.45 * scale, gz + 0.20 * scale),
+        (gx + 1.25 * scale, by + 3.45 * scale, gz - 0.15 * scale),
+    ]
+    add_swept_tube(bm_wood, trunk_pts, 0.40 * scale, 0.40 * scale, sides=9, radii_scale=[1.45, 1.05, 0.82, 0.64, 0.44])
 
-    # 3. Left & Right Flanking Companion Spirit Blossom Trees (`1795472939345-download.png`)
-    add_single_spirit_blossom_tree_body(
-        bm_wood, bm_blossom_lit, bm_blossom_shade, bm_fol_lit, bm_fol_shade,
-        bm_iron, bm_flw_white, bm_flw_pink,
-        gx - 2.35 * scale, gy + 0.34 * scale, gz + 0.65 * scale,
-        scale=scale * 0.54, lean_dir_x=-1.0, with_hollow_cave=False, with_shide=False, seed=seed + 40
-    )
-    add_single_spirit_blossom_tree_body(
-        bm_wood, bm_blossom_lit, bm_blossom_shade, bm_fol_lit, bm_fol_shade,
-        bm_iron, bm_flw_white, bm_flw_pink,
-        gx + 2.15 * scale, gy + 0.44 * scale, gz - 0.25 * scale,
-        scale=scale * 0.62, lean_dir_x=1.0, with_hollow_cave=False, with_shide=False, seed=seed + 70
-    )
+    # Secondary lower horizontal bough reaching back-left
+    bough_back = [
+        (gx + 0.65 * scale, by + 1.05 * scale, gz + 0.28 * scale),
+        (gx - 0.65 * scale, by + 1.75 * scale, gz - 0.45 * scale),
+        (gx - 1.35 * scale, by + 2.15 * scale, gz - 0.72 * scale),
+    ]
+    add_swept_tube(bm_wood, bough_back, 0.24 * scale, 0.24 * scale, sides=7, radii_scale=[1.0, 0.68, 0.38])
 
-    # 4. Sacred Shimenawa Rope-Bound Stones on the left & right rock ledges (`1795472939345-download.png`)
-    add_shimenawa_sacred_stone(
-        bm_stone_body, bm_stone_hi, bm_gold, bm_flw_white,
-        gx - 1.65 * scale, gy + 0.35 * scale, gz + 1.05 * scale,
-        scale=0.82 * scale, rot_deg=-15.0
+    # 3 distinct wide, flat-tiered floating horizontal bonsai cloud shelves at staggered heights!
+    add_alpha_card_canopy_bouquet(
+        bm_blossom_lit, bm_blossom_shade,
+        gx - 1.40 * scale, by + 2.45 * scale, gz - 0.75 * scale,
+        rx=1.55 * scale, ry=0.88 * scale, rz=1.42 * scale, seed=seed + 13
     )
-    add_shimenawa_sacred_stone(
-        bm_stone_body, bm_stone_hi, bm_gold, bm_flw_white,
-        gx + 1.75 * scale, gy + 0.45 * scale, gz + 0.72 * scale,
-        scale=0.88 * scale, rot_deg=18.0
+    add_alpha_card_canopy_bouquet(
+        bm_blossom_lit, bm_blossom_shade,
+        gx + 2.15 * scale, by + 2.75 * scale, gz + 0.28 * scale,
+        rx=1.75 * scale, ry=0.95 * scale, rz=1.58 * scale, seed=seed + 31
+    )
+    add_alpha_card_canopy_bouquet(
+        bm_blossom_lit, bm_blossom_shade,
+        gx + 1.15 * scale, by + 3.95 * scale, gz - 0.18 * scale,
+        rx=1.92 * scale, ry=1.08 * scale, rz=1.76 * scale, seed=seed + 53
     )
 
 
-def add_lol_handpainted_canopy_tree(bm_wood, bm_fol_lit, bm_fol_shade, gx, gy, gz, scale=1.0, seed=101, bm_grass_lit=None, bm_grass_shade=None):
-    """Green Summoner's Rift Broadleaf Tree using the sculpted feathered lobe pipeline (no radial spokes!)."""
-    rng = random.Random(seed)
-    g_lit = bm_grass_lit if bm_grass_lit is not None else bm_fol_lit
-    g_shd = bm_grass_shade if bm_grass_shade is not None else bm_fol_shade
+def add_tree_shape_twin_forked_sakura(
+    bm_wood, bm_blossom_lit, bm_blossom_shade, bm_grass,
+    gx, gy, gz, scale=1.0, seed=112
+):
+    """
+    BODY SHAPE 3 (NW Rift Outskirts `(-15.8, -0.14, -18.8)`):
+    Twin V-Forked Diverging Trunks rising from a shared root burl at opposite angles (-38° and +30°),
+    holding separated high and low canopy clouds with open sky between the two trunks!
+    """
+    # Left tall slender trunk
+    t_left = [
+        (gx, gy - 0.08, gz),
+        (gx - 0.55 * scale, gy + 1.25 * scale, gz + 0.18 * scale),
+        (gx - 1.35 * scale, gy + 2.75 * scale, gz + 0.38 * scale),
+        (gx - 1.75 * scale, gy + 4.15 * scale, gz + 0.45 * scale),
+    ]
+    add_swept_tube(bm_wood, t_left, 0.34 * scale, 0.34 * scale, sides=8, radii_scale=[1.35, 0.92, 0.68, 0.45])
 
-    lean_x = rng.uniform(-0.42, 0.42) * scale
-    lean_z = rng.uniform(-0.42, 0.42) * scale
+    # Right shorter wide-leaning trunk
+    t_right = [
+        (gx + 0.15 * scale, gy - 0.08, gz - 0.10 * scale),
+        (gx + 0.78 * scale, gy + 1.05 * scale, gz - 0.28 * scale),
+        (gx + 1.65 * scale, gy + 2.15 * scale, gz - 0.48 * scale),
+        (gx + 2.15 * scale, gy + 2.85 * scale, gz - 0.55 * scale),
+    ]
+    add_swept_tube(bm_wood, t_right, 0.28 * scale, 0.28 * scale, sides=8, radii_scale=[1.25, 0.86, 0.62, 0.42])
+
+    for g_i in range(3):
+        ang = g_i * 2.1
+        add_lol_alpha_grass_tuft(bm_grass, gx + math.cos(ang) * 0.95 * scale, gy, gz + math.sin(ang) * 0.95 * scale, scale=0.92 * scale, seed=seed + g_i)
+
+    # High crown on left trunk + lower twin clouds on right trunk
+    add_alpha_card_canopy_bouquet(
+        bm_blossom_lit, bm_blossom_shade,
+        gx - 1.80 * scale, gy + 4.55 * scale, gz + 0.45 * scale,
+        rx=1.95 * scale, ry=1.28 * scale, rz=1.82 * scale, seed=seed + 19
+    )
+    add_alpha_card_canopy_bouquet(
+        bm_blossom_lit, bm_blossom_shade,
+        gx + 2.25 * scale, gy + 3.15 * scale, gz - 0.55 * scale,
+        rx=1.68 * scale, ry=1.12 * scale, rz=1.55 * scale, seed=seed + 41
+    )
+
+
+def add_tree_shape_twisted_upright_willow_blossom(
+    bm_wood, bm_blossom_lit, bm_blossom_shade, bm_grass,
+    gx, gy, gz, scale=1.0, seed=117
+):
+    """
+    BODY SHAPE 4 (NE Rift Outskirts `(21.5, -0.14, -23.8)`):
+    Tall Corkscrew Upright Trunk branching at the top into a wide 4-pronged Y-crown dome.
+    """
     trunk_pts = [
         (gx, gy - 0.08, gz),
-        (gx - lean_x * 0.25, gy + 1.05 * scale, gz - lean_z * 0.25),
-        (gx + lean_x * 0.45, gy + 2.20 * scale, gz + lean_z * 0.45),
-        (gx + lean_x, gy + 3.35 * scale, gz + lean_z),
+        (gx + 0.28 * scale, gy + 1.35 * scale, gz - 0.22 * scale),
+        (gx - 0.24 * scale, gy + 2.75 * scale, gz + 0.20 * scale),
+        (gx + 0.08 * scale, gy + 4.05 * scale, gz - 0.05 * scale),
     ]
-    add_swept_tube(bm_wood, trunk_pts, 0.44 * scale, 0.44 * scale, sides=10, radii_scale=[1.42, 0.94, 0.72, 0.52])
-
-    for r_i in range(5):
-        ang = math.radians(r_i * 72.0 + rng.uniform(-14.0, 14.0))
-        dx, dz = math.cos(ang), math.sin(ang)
-        px_t, pz_t = -dz, dx
-        wiggle = rng.uniform(-0.22, 0.22) * scale
-        root_pts = [
-            (gx + dx * 0.16 * scale, gy + 1.30 * scale, gz + dz * 0.16 * scale),
-            (gx + dx * 0.58 * scale + px_t * wiggle * 0.5, gy + 0.45 * scale, gz + dz * 0.58 * scale + pz_t * wiggle * 0.5),
-            (gx + dx * 1.08 * scale + px_t * wiggle, gy + 0.08 * scale, gz + dz * 1.08 * scale + pz_t * wiggle),
-            (gx + dx * 1.55 * scale, gy - 0.04, gz + dz * 1.55 * scale),
-        ]
-        add_swept_tube(bm_wood, root_pts, 0.22 * scale, 0.22 * scale, sides=7, radii_scale=[0.95, 0.82, 0.48, 0.18])
-        ma = ang + math.radians(36.0)
-        add_lol_grass_tuft_cluster(
-            g_lit, g_shd,
-            gx + math.cos(ma) * 0.85 * scale, gy, gz + math.sin(ma) * 0.85 * scale,
-            scale=0.80 * scale, n_blades=6, seed=seed + 50 + r_i
-        )
+    add_swept_tube(bm_wood, trunk_pts, 0.38 * scale, 0.38 * scale, sides=9, radii_scale=[1.42, 0.95, 0.74, 0.52])
+    add_lol_alpha_grass_tuft(bm_grass, gx + 0.75 * scale, gy, gz + 0.45 * scale, scale=0.95 * scale, seed=seed + 3)
 
     top_x, top_y, top_z = trunk_pts[-1]
-    for dx_l, dy_l, dz_l, rx_l, ry_l, rz_l, vmin, vmax, s_off in [
-        (0.0,   0.95,  0.0,  1.95, 1.32, 1.85, 0.12, 0.65, 11),
-        (-1.15, 0.22,  0.45, 1.65, 1.15, 1.55, 0.25, 0.82, 23),
-        (1.18,  0.25,  0.38, 1.62, 1.12, 1.52, 0.25, 0.82, 37),
-        (0.0,   0.28, -0.88, 1.68, 1.15, 1.50, 0.28, 0.85, 49),
-    ]:
-        add_lol_sculpted_blossom_lobe(
+    for b_i, (dx_b, dz_b) in enumerate([(-1.35, 0.65), (1.35, 0.65), (0.0, -1.35)]):
+        b_pts = [(top_x, top_y - 0.25 * scale, top_z), (top_x + dx_b * scale, top_y + 0.75 * scale, top_z + dz_b * scale)]
+        add_swept_tube(bm_wood, b_pts, 0.20 * scale, 0.20 * scale, sides=7, radii_scale=[1.0, 0.45])
+        add_alpha_card_canopy_bouquet(
+            bm_blossom_lit, bm_blossom_shade,
+            top_x + dx_b * 1.05 * scale, top_y + 0.95 * scale, top_z + dz_b * 1.05 * scale,
+            rx=1.55 * scale, ry=1.12 * scale, rz=1.48 * scale, seed=seed + 20 + b_i * 17
+        )
+    add_alpha_card_canopy_bouquet(
+        bm_blossom_lit, bm_blossom_shade,
+        top_x, top_y + 1.65 * scale, top_z,
+        rx=1.85 * scale, ry=1.22 * scale, rz=1.78 * scale, seed=seed + 91
+    )
+
+
+def add_tree_shape_multi_limb_emerald_oak(
+    bm_wood, bm_fol_lit, bm_fol_shade, bm_grass,
+    gx, gy, gz, scale=1.0, num_limbs=4, lean_angle_deg=35.0, seed=103
+):
+    """
+    BODY SHAPE 5 (Green Summoner's Rift Broadleaf Trees — each instance has a unique limb count,
+    lean direction, branch lengths, and alpha-card emerald bouquet proportions!).
+    """
+    rng = random.Random(seed)
+    la = math.radians(lean_angle_deg)
+    lx = math.cos(la) * rng.uniform(0.45, 0.85) * scale
+    lz = math.sin(la) * rng.uniform(0.45, 0.85) * scale
+    trunk_h = rng.uniform(3.0, 3.8) * scale
+
+    trunk_pts = [
+        (gx, gy - 0.08, gz),
+        (gx + lx * 0.25, gy + trunk_h * 0.35, gz + lz * 0.25),
+        (gx + lx * 0.70, gy + trunk_h * 0.72, gz + lz * 0.70),
+        (gx + lx, gy + trunk_h, gz + lz),
+    ]
+    add_swept_tube(bm_wood, trunk_pts, 0.42 * scale, 0.42 * scale, sides=9, radii_scale=[1.42, 0.94, 0.72, 0.52])
+
+    for r_i in range(4):
+        ra = la + r_i * 1.57 + rng.uniform(-0.25, 0.25)
+        r_pts = [
+            (gx + math.cos(ra) * 0.16 * scale, gy + 0.95 * scale, gz + math.sin(ra) * 0.16 * scale),
+            (gx + math.cos(ra) * 0.78 * scale, gy + 0.18 * scale, gz + math.sin(ra) * 0.78 * scale),
+            (gx + math.cos(ra) * 1.38 * scale, gy - 0.05 * scale, gz + math.sin(ra) * 1.38 * scale),
+        ]
+        add_swept_tube(bm_wood, r_pts, 0.19 * scale, 0.19 * scale, sides=6, radii_scale=[1.0, 0.58, 0.16])
+    add_lol_alpha_grass_tuft(bm_grass, gx + math.cos(la) * 0.85 * scale, gy, gz + math.sin(la) * 0.85 * scale, scale=0.85 * scale, seed=seed + 9)
+
+    top_x, top_y, top_z = trunk_pts[-1]
+    base_yaw = rng.uniform(0.0, 2.0 * math.pi)
+    for b_i in range(num_limbs):
+        ba = base_yaw + (b_i / float(num_limbs)) * 2.0 * math.pi + rng.uniform(-0.28, 0.28)
+        b_reach = rng.uniform(1.15, 1.85) * scale
+        b_rise = rng.uniform(0.55, 1.35) * scale
+        ex = top_x + math.cos(ba) * b_reach
+        ey = top_y + b_rise
+        ez = top_z + math.sin(ba) * b_reach
+        add_swept_tube(bm_wood, [(top_x, top_y - 0.25 * scale, top_z), (ex, ey, ez)], 0.21 * scale, 0.21 * scale, sides=7, radii_scale=[1.0, 0.42])
+        add_alpha_card_canopy_bouquet(
             bm_fol_lit, bm_fol_shade,
-            top_x + dx_l * scale, top_y + dy_l * scale, top_z + dz_l * scale,
-            rx=rx_l * scale, ry=ry_l * scale, rz=rz_l * scale,
-            uv_v_min=vmin, uv_v_max=vmax, seed=seed + s_off
+            ex, ey + 0.25 * scale, ez,
+            rx=rng.uniform(1.38, 1.78) * scale,
+            ry=rng.uniform(0.95, 1.25) * scale,
+            rz=rng.uniform(1.35, 1.72) * scale,
+            seed=seed + 30 + b_i * 19
         )
 
 
-def add_palia_cypress_tree(bm_wood, bm_fol_lit, bm_fol_shade, gx, gy, gz, scale=1.0, seed=202):
-    add_lol_rift_pine_tree(bm_wood, bm_fol_lit, bm_fol_shade, gx, gy, gz, scale=0.68 * scale, seed=seed)
-
-
-def add_flower_bush_cluster(bm_fol_lit, bm_fol_shade, bm_flw_purple, bm_flw_pink, bm_flw_white, gx, gy, gz, scale=1.0, seed=303):
+def add_tree_shape_varied_conifer_pine(
+    bm_wood, bm_fol_lit, bm_fol_shade, bm_grass,
+    gx, gy, gz, scale=1.0, variant_idx=0, seed=108
+):
+    """
+    BODY SHAPES 6 & 7 (Summoner's Rift Conifer / Pine Trees with 4 distinct body silhouettes
+    built from tiered drooping Alpha-Cutout Emerald Leaf Cluster Cards + serrated under-boughs!):
+    - `variant_idx == 0`: Tall Crooked Mountain Spire (slender, S-curved tall trunk, 6 tiers)
+    - `variant_idx == 1`: Wide Squat Old-Growth Forest Cedar (broad spreading lower skirts, 4 wide tiers)
+    - `variant_idx == 2`: Twin-Stemmed Forked Fir (two angled conifer spires of unequal height)
+    - `variant_idx == 3`: Windswept Leaning Ridge Pine (dramatic side lean with asymmetric bough cards)
+    """
     rng = random.Random(seed)
-    add_sculpted_foliage_cloud(bm_fol_shade, gx, gy + 0.22 * scale, gz, 0.68 * scale, 0.38 * scale, 0.64 * scale, subdiv=2, seed=seed)
-    add_lol_grass_tuft_cluster(bm_fol_lit, bm_fol_shade, gx, gy, gz, scale=0.85 * scale, n_blades=7, seed=seed + 7)
+    uv_lit = bm_fol_lit.loops.layers.uv.active or bm_fol_lit.loops.layers.uv.new("UVMap")
+    col_lit = bm_fol_lit.loops.layers.color.active or bm_fol_lit.loops.layers.color.new("Col")
+    uv_shd = bm_fol_shade.loops.layers.uv.active or bm_fol_shade.loops.layers.uv.new("UVMap")
+    col_shd = bm_fol_shade.loops.layers.color.active or bm_fol_shade.loops.layers.color.new("Col")
+
+    def build_single_conifer_spire(sx, sy, sz, sp_scale, width_mult, height_mult, lean_x, lean_z, n_tiers, sp_seed):
+        sp_rng = random.Random(sp_seed)
+        tot_h = 4.6 * sp_scale * height_mult
+        t_pts = [
+            (sx, sy - 0.10, sz),
+            (sx + lean_x * 0.25, sy + tot_h * 0.35, sz + lean_z * 0.25),
+            (sx + lean_x * 0.70, sy + tot_h * 0.72, sz + lean_z * 0.70),
+            (sx + lean_x, sy + tot_h * 0.96, sz + lean_z),
+        ]
+        add_swept_tube(bm_wood, t_pts, 0.32 * sp_scale * width_mult, 0.32 * sp_scale * width_mult, sides=8, radii_scale=[1.38, 0.88, 0.54, 0.22])
+
+        for t_i in range(n_tiers):
+            t_frac = float(t_i) / float(max(1, n_tiers - 1))
+            ty = sy + (0.65 + t_frac * (3.75 * height_mult)) * sp_scale
+            cx_t = sx + lean_x * (t_frac ** 1.25)
+            cz_t = sz + lean_z * (t_frac ** 1.25)
+            r_tier = (2.15 - t_frac * 1.38) * sp_scale * width_mult
+            h_tier = (1.45 - t_frac * 0.45) * sp_scale
+
+            # Number of overlapping curved alpha-cutout bough cards around this conifer tier
+            n_cards = max(4, 7 - (t_i // 2))
+            rot_tier = t_i * 0.55 + sp_rng.uniform(-0.18, 0.18)
+            for c_i in range(n_cards):
+                ang = rot_tier + (c_i / float(n_cards)) * 2.0 * math.pi
+                ca, sa = math.cos(ang), math.sin(ang)
+                px = cx_t + ca * (r_tier * 0.52)
+                pz = cz_t + sa * (r_tier * 0.52)
+                # Drooping bough pitch (0.52..0.72 rad) so the alpha-cutout leaf tips hang down like pine boughs!
+                pitch = 0.54 + t_frac * 0.24
+                use_lit = (t_i >= 1 and (c_i % 3 != 0)) or (t_i == n_tiers - 1)
+                t_bm = bm_fol_lit if use_lit else bm_fol_shade
+                t_uv = uv_lit if use_lit else uv_shd
+                t_col = col_lit if use_lit else col_shd
+                tint = (0.98, 1.02, 0.92) if use_lit else (0.72, 0.84, 0.78)
+                add_curved_alpha_leaf_card(
+                    t_bm, t_uv, t_col,
+                    px, ty, pz, cx_t, ty - 0.45 * h_tier, cz_t,
+                    width=r_tier * 1.35, height=h_tier * 1.28,
+                    yaw_rad=ang, pitch_rad=pitch,
+                    cell_idx=(sp_seed + t_i + c_i) % 4,
+                    shade_tint=tint,
+                    flip_u=(c_i % 2 == 1)
+                )
+
+    v_kind = variant_idx % 4
+    la = rng.uniform(0.0, 2.0 * math.pi)
+    if v_kind == 0:
+        # Tall Crooked Mountain Spire + 1 small base sprout
+        build_single_conifer_spire(gx, gy, gz, scale, width_mult=0.88, height_mult=1.22, lean_x=math.cos(la) * 0.65 * scale, lean_z=math.sin(la) * 0.65 * scale, n_tiers=6, sp_seed=seed)
+        build_single_conifer_spire(gx - math.cos(la) * 1.35 * scale, gy, gz - math.sin(la) * 1.35 * scale, scale * 0.52, width_mult=0.95, height_mult=0.95, lean_x=-math.cos(la) * 0.35 * scale, lean_z=-math.sin(la) * 0.35 * scale, n_tiers=4, sp_seed=seed + 31)
+    elif v_kind == 1:
+        # Wide Squat Old-Growth Forest Cedar
+        build_single_conifer_spire(gx, gy, gz, scale, width_mult=1.24, height_mult=0.84, lean_x=math.cos(la) * 0.28 * scale, lean_z=math.sin(la) * 0.28 * scale, n_tiers=5, sp_seed=seed)
+    elif v_kind == 2:
+        # Twin-Stemmed Forked Fir (two diverging trunks of unequal height)
+        build_single_conifer_spire(gx - 0.35 * scale, gy, gz, scale * 0.96, width_mult=0.92, height_mult=1.12, lean_x=-0.75 * scale, lean_z=0.25 * scale, n_tiers=6, sp_seed=seed)
+        build_single_conifer_spire(gx + 0.55 * scale, gy, gz + 0.25 * scale, scale * 0.74, width_mult=0.98, height_mult=0.92, lean_x=0.82 * scale, lean_z=-0.30 * scale, n_tiers=5, sp_seed=seed + 47)
+    else:
+        # Windswept Leaning Ridge Pine + 2 low sub-spires
+        build_single_conifer_spire(gx, gy, gz, scale, width_mult=1.02, height_mult=1.05, lean_x=math.cos(la) * 0.92 * scale, lean_z=math.sin(la) * 0.92 * scale, n_tiers=6, sp_seed=seed)
+        for s_i in [-1, 1]:
+            sa = la + s_i * 2.1
+            build_single_conifer_spire(gx + math.cos(sa) * 1.45 * scale, gy, gz + math.sin(sa) * 1.45 * scale, scale * (0.48 if s_i < 0 else 0.58), width_mult=1.0, height_mult=0.90, lean_x=math.cos(sa) * 0.35 * scale, lean_z=math.sin(sa) * 0.35 * scale, n_tiers=4, sp_seed=seed + 60 + s_i)
+
+    for g_i in range(3):
+        ga = la + g_i * 2.09
+        add_lol_alpha_grass_tuft(bm_grass, gx + math.cos(ga) * 1.45 * scale, gy, gz + math.sin(ga) * 1.45 * scale, scale=0.88 * scale, seed=seed + 90 + g_i)
+
+
+def add_palia_cypress_tree(bm_wood, bm_fol_lit, bm_fol_shade, bm_grass, gx, gy, gz, scale=1.0, variant_idx=0, seed=202):
+    add_tree_shape_varied_conifer_pine(bm_wood, bm_fol_lit, bm_fol_shade, bm_grass, gx, gy, gz, scale=0.66 * scale, variant_idx=variant_idx, seed=seed)
+
+
+def add_flower_bush_cluster(bm_fol_lit, bm_fol_shade, bm_grass, bm_flw_purple, bm_flw_pink, bm_flw_white, gx, gy, gz, scale=1.0, seed=303):
+    rng = random.Random(seed)
+    add_alpha_card_canopy_bouquet(
+        bm_fol_lit, bm_fol_shade,
+        gx, gy + 0.32 * scale, gz,
+        rx=0.62 * scale, ry=0.38 * scale, rz=0.60 * scale, seed=seed
+    )
+    add_lol_alpha_grass_tuft(bm_grass, gx, gy, gz, scale=0.85 * scale, seed=seed + 7)
     for _ in range(3):
         lx = gx + rng.uniform(-0.35, 0.35) * scale
         lz = gz + rng.uniform(-0.35, 0.35) * scale
@@ -1267,54 +1139,12 @@ def bake_lol_edge_highlights_and_crevices(bm, top_highlight=1.16, crevice_dark=0
             loop[col_layer] = (r, g, b, 1.0)
 
 
-def bake_lol_foliage_gradient(bm, is_blossom=False, is_lit_layer=True):
-    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-    col_layer = bm.loops.layers.color.active or bm.loops.layers.color.new("Col")
-    uv_layer = bm.loops.layers.uv.active
-    if not bm.verts:
-        return
-
-    for v in bm.verts:
-        l_faces = v.link_faces
-        if not l_faces:
-            continue
-        avg_nz = sum(f.normal.z for f in l_faces) / float(len(l_faces))
-        for loop in v.link_loops:
-            uv_y = loop[uv_layer].uv.y if uv_layer else 0.5
-            if avg_nz < -0.25:
-                if not is_blossom:
-                    col = (0.44, 0.64, 0.66, 1.0)
-                else:
-                    col = (0.64, 0.52, 0.74, 1.0)
-            else:
-                if not is_blossom:
-                    # For pine/grass: uv_y = 0.08 is tip (bright), uv_y = 0.90 is upper tuck (dark)
-                    crown_lift = max(0.0, min(1.0, (1.0 - uv_y) * 0.55 + (avg_nz + 0.4) * 0.45))
-                    if not is_lit_layer:
-                        crown_lift *= 0.80
-                    r = min(1.0, 0.58 + 0.42 * crown_lift)
-                    g = min(1.0, 0.74 + 0.26 * crown_lift)
-                    b = min(1.0, 0.68 + 0.16 * crown_lift)
-                    col = (r, g, b, 1.0)
-                else:
-                    # For Spirit Blossom: texture already has the real Devoted Studios vertical gradient
-                    # (top at uv_y = 0.92, bottom at uv_y = 0.08); apply gentle spherical AO & crown warmth
-                    crown_lift = max(0.0, min(1.0, uv_y * 0.55 + (avg_nz + 0.4) * 0.45))
-                    if not is_lit_layer:
-                        crown_lift *= 0.78
-                    r = min(1.0, 0.74 + 0.26 * crown_lift)
-                    g = min(1.0, 0.66 + 0.30 * crown_lift)
-                    b = min(1.0, 0.76 + 0.22 * crown_lift)
-                    col = (r, g, b, 1.0)
-            loop[col_layer] = col
-
-
-def make_mesh_object(name, bm, mat, smooth_shading=False, top_hi=1.16, crev_dark=0.70, is_foliage=False, is_blossom=False, is_lit_layer=True):
-    if is_foliage:
-        bake_lol_foliage_gradient(bm, is_blossom=is_blossom, is_lit_layer=is_lit_layer)
-    else:
+def make_mesh_object(name, bm, mat, smooth_shading=False, top_hi=1.16, crev_dark=0.70, is_foliage=False):
+    if not is_foliage:
         bake_lol_edge_highlights_and_crevices(bm, top_highlight=top_hi, crevice_dark=crev_dark)
     mesh = bpy.data.meshes.new(name + "_Mesh")
+    # Preserve custom spherical normals on foliage cards!
+    custom_vert_normals = [tuple(v.normal) for v in bm.verts] if is_foliage else None
     bm.to_mesh(mesh)
     bm.free()
     obj = bpy.data.objects.new(name, mesh)
@@ -1323,12 +1153,16 @@ def make_mesh_object(name, bm, mat, smooth_shading=False, top_hi=1.16, crev_dark
     for p in mesh.polygons:
         p.material_index = 0
         p.use_smooth = smooth_shading
+    if is_foliage and custom_vert_normals and hasattr(mesh, "normals_split_custom_set_from_vertices"):
+        mesh.normals_split_custom_set_from_vertices(custom_vert_normals)
     return obj
 
 
-def make_mat(name, color=(1, 1, 1, 1), tex_path=None, rough=0.88, metal=0.0, emission=None, emit_str=0.0):
+def make_mat(name, color=(1, 1, 1, 1), tex_path=None, rough=0.88, metal=0.0, emission=None, emit_str=0.0, is_alpha_clip=False):
     mat = bpy.data.materials.new(name=name)
     mat.use_nodes = True
+    if is_alpha_clip and hasattr(mat, "blend_method"):
+        mat.blend_method = "CLIP"
     nodes = mat.node_tree.nodes
     links = mat.node_tree.links
     bsdf = next(n for n in nodes if n.type == "BSDF_PRINCIPLED")
@@ -1339,6 +1173,8 @@ def make_mat(name, color=(1, 1, 1, 1), tex_path=None, rough=0.88, metal=0.0, emi
         tn = nodes.new("ShaderNodeTexImage")
         tn.image = bpy.data.images.load(tex_path)
         links.new(tn.outputs["Color"], bsdf.inputs["Base Color"])
+        if is_alpha_clip and "Alpha" in tn.outputs and "Alpha" in bsdf.inputs:
+            links.new(tn.outputs["Alpha"], bsdf.inputs["Alpha"])
     if emission is not None and emit_str > 0.0:
         if "Emission Color" in bsdf.inputs:
             bsdf.inputs["Emission Color"].default_value = emission
@@ -1346,7 +1182,7 @@ def make_mat(name, color=(1, 1, 1, 1), tex_path=None, rough=0.88, metal=0.0, emi
     return mat
 
 
-def build_lorencia_lol_city_v95():
+def build_lorencia_lol_city_v10():
     bpy.ops.wm.read_factory_settings(use_empty=True)
 
     flagstone_tex = os.path.join(BLENDER_DIR, "T_LoL_Mossy_Flagstones.png")
@@ -1356,6 +1192,7 @@ def build_lorencia_lol_city_v95():
     roof_tex = os.path.join(BLENDER_DIR, "T_Palia_Terracotta_Roof.png")
     leaves_tex = os.path.join(BLENDER_DIR, "T_Real_Palia_Leaves.png")
     blossom_tex = os.path.join(BLENDER_DIR, "T_LoL_Blossom_Leaves.png")
+    grass_tuft_tex = os.path.join(BLENDER_DIR, "T_LoL_Grass_Tuft_Alpha.png")
     metal_tex = os.path.join(BLENDER_DIR, "T_Lorencia_Metal_Trim.png")
 
     mat_flagstones = make_mat("MI_LoL_Mossy_Flagstones", color=(1.0, 0.99, 0.97, 1.0), tex_path=flagstone_tex, rough=0.90)
@@ -1372,10 +1209,11 @@ def build_lorencia_lol_city_v95():
     mat_banner = make_mat("MI_LoL_Banner", color=(1.0, 0.98, 0.96, 1.0), tex_path=metal_tex, rough=0.80)
     mat_water = make_mat("MI_Lorencia_Water", color=(0.22, 0.78, 0.88, 1.0), rough=0.18, emission=(0.16, 0.68, 0.82, 1.0), emit_str=0.55)
     mat_ember = make_mat("MI_Lorencia_Ember", color=(1.0, 0.74, 0.28, 1.0), rough=0.35, emission=(1.0, 0.62, 0.18, 1.0), emit_str=1.35)
-    mat_fol_lit = make_mat("MI_LoL_Foliage_Lit", color=(1.04, 1.08, 0.94, 1.0), tex_path=leaves_tex)
-    mat_fol_shade = make_mat("MI_LoL_Foliage_Shade", color=(0.72, 0.84, 0.76, 1.0), tex_path=leaves_tex)
-    mat_blossom_lit = make_mat("MI_LoL_Blossom_Lit", color=(0.98, 0.94, 0.98, 1.0), tex_path=blossom_tex)
-    mat_blossom_shade = make_mat("MI_LoL_Blossom_Shade", color=(0.74, 0.64, 0.82, 1.0), tex_path=blossom_tex)
+    mat_fol_lit = make_mat("MI_LoL_Foliage_Lit", color=(1.02, 1.05, 0.94, 1.0), tex_path=leaves_tex, is_alpha_clip=True)
+    mat_fol_shade = make_mat("MI_LoL_Foliage_Shade", color=(0.74, 0.86, 0.78, 1.0), tex_path=leaves_tex, is_alpha_clip=True)
+    mat_blossom_lit = make_mat("MI_LoL_Blossom_Lit", color=(1.00, 0.96, 1.00, 1.0), tex_path=blossom_tex, is_alpha_clip=True)
+    mat_blossom_shade = make_mat("MI_LoL_Blossom_Shade", color=(0.78, 0.70, 0.86, 1.0), tex_path=blossom_tex, is_alpha_clip=True)
+    mat_grass_cards = make_mat("MI_LoL_Grass_Cards", color=(1.00, 1.02, 0.94, 1.0), tex_path=grass_tuft_tex, is_alpha_clip=True)
     mat_flw_purple = make_mat("MI_Palia_Flowers_Purple", color=(0.58, 0.34, 0.88, 1.0))
     mat_flw_pink = make_mat("MI_Palia_Flowers_Pink", color=(0.94, 0.48, 0.72, 1.0))
     mat_flw_white = make_mat("MI_Palia_Flowers_White", color=(0.98, 0.96, 0.90, 1.0))
@@ -1398,6 +1236,7 @@ def build_lorencia_lol_city_v95():
     bm_fol_shade = bmesh.new()
     bm_blossom_lit = bmesh.new()
     bm_blossom_shade = bmesh.new()
+    bm_grass = bmesh.new()
     bm_flw_purple = bmesh.new()
     bm_flw_pink = bmesh.new()
     bm_flw_white = bmesh.new()
@@ -1434,20 +1273,20 @@ def build_lorencia_lol_city_v95():
         ang_r = math.radians(g_deg)
         gx_mid = fx + math.sin(ang_r) * 10.1
         gz_mid = fz + math.cos(ang_r) * 10.1
-        add_palia_cypress_tree(bm_wood, bm_fol_lit, bm_fol_shade, gx_mid, 0.08, gz_mid, scale=0.95, seed=500 + g_idx)
+        add_palia_cypress_tree(bm_wood, bm_fol_lit, bm_fol_shade, bm_grass, gx_mid, 0.08, gz_mid, scale=0.95, variant_idx=g_idx, seed=500 + g_idx)
         for f_off in [-13.0, 13.0]:
             af = math.radians(g_deg + f_off)
             add_flower_bush_cluster(
-                bm_fol_lit, bm_fol_shade, bm_flw_purple, bm_flw_pink, bm_flw_white,
+                bm_fol_lit, bm_fol_shade, bm_grass, bm_flw_purple, bm_flw_pink, bm_flw_white,
                 fx + math.sin(af) * 10.0, 0.08, fz + math.cos(af) * 10.0,
                 scale=0.92, seed=520 + g_idx * 3 + (1 if f_off > 0 else 0)
             )
         for g_off in [-7.0, 7.0]:
             ag = math.radians(g_deg + g_off)
-            add_lol_grass_tuft_cluster(
-                bm_fol_lit, bm_fol_shade,
+            add_lol_alpha_grass_tuft(
+                bm_grass,
                 fx + math.sin(ag) * 9.8, 0.08, fz + math.cos(ag) * 9.8,
-                scale=0.92, n_blades=8, seed=560 + g_idx * 5 + (1 if g_off > 0 else 0)
+                scale=0.92, seed=560 + g_idx * 5 + (1 if g_off > 0 else 0)
             )
 
     # ═══════════════════════════════════════════════════════════════════
@@ -1497,10 +1336,10 @@ def build_lorencia_lol_city_v95():
     add_cylinder(bm_water, fx, 3.38, fz, 1.76, 1.76, 0.08, 12)
     for m_i in range(6):
         ang = (float(m_i) / 6.0) * 2.0 * math.pi + 0.35
-        add_lol_grass_tuft_cluster(
-            bm_fol_lit, bm_fol_shade,
+        add_lol_alpha_grass_tuft(
+            bm_grass,
             fx + math.cos(ang) * 1.90, 2.85, fz + math.sin(ang) * 1.90,
-            scale=0.68, n_blades=6, seed=800 + m_i
+            scale=0.68, seed=800 + m_i
         )
 
     # ═══════════════════════════════════════════════════════════════════
@@ -1573,8 +1412,8 @@ def build_lorencia_lol_city_v95():
         add_box(bm_gold, 20.5, 0.50, 16.5 + cz_o, 1.22, 0.18, 1.62)
 
     # ═══════════════════════════════════════════════════════════════════
-    # 6. 18 SPIRAL STREETLAMPS + HERALDIC BANNERS, SUMMONER'S RIFT LAYERED PINES,
-    #    AND DEVOTED STUDIOS SPIRIT BLOSSOM TREE DIORAMAS (`1795472939345-download.png`)
+    # 6. 18 SPIRAL STREETLAMPS + HERALDIC BANNERS, AND 100% UNIQUE TREE BODY SHAPES
+    #    USING REAL DEVOTED STUDIOS RGBA ALPHA-CUTOUT LEAF CLUSTER CARDS!
     # ═══════════════════════════════════════════════════════════════════
     for sx_l, b_dir in [(-16.2, -1.0), (15.5, 1.0), (-9.2, 1.0), (9.2, -1.0)]:
         for lz in [-0.5, 10.5, 21.5]:
@@ -1584,62 +1423,69 @@ def build_lorencia_lol_city_v95():
     add_palia_rope_lantern_post(bm_wood, bm_gold, bm_iron, bm_ember, -17.2, 0.0, 1.2, facing_x=1.0)
     add_festoon_lantern_string(bm_iron, bm_ember, (-17.2, 4.45, 8.2), (-17.2, 4.45, 1.2), sag=0.60, num_lanterns=3)
 
-    # A. Town Trees: Full Spirit Blossom Stepped-Rock Dioramas at (-26.2, 10.5) and (23.2, -0.8) + Summoner's Rift Pines
-    for ox, oz, osc, oseed, t_kind in [
-        (-25.8, -1.5, 1.08, 101, "pine"),
-        (-26.2, 10.5, 0.94, 102, "blossom_diorama"),  # West Tavern & Forge Spirit Blossom Diorama
-        (-25.5, 23.5, 1.04, 103, "green_canopy"),
-        (23.2, -0.8, 0.95, 104, "blossom_diorama"),   # East Apothecary & Windmill Spirit Blossom Diorama (Shot 3 focal point!)
-        (24.8, 23.5, 1.08, 105, "pine"),
-        (-16.5, 27.5, 1.10, 106, "pine"),
-        (16.5, 27.5, 1.05, 107, "green_canopy"),
-    ]:
-        if t_kind == "blossom_diorama":
-            add_lol_spirit_blossom_diorama(
-                bm_stone_body, bm_stone_hi, bm_wood, bm_blossom_lit, bm_blossom_shade,
-                bm_fol_lit, bm_fol_shade, bm_iron, bm_gold, bm_flw_white, bm_flw_pink,
-                ox, 0.0, oz, scale=osc, seed=oseed
-            )
-        elif t_kind == "pine":
-            add_chiseled_block(bm_stone_body, bm_stone_hi, ox, 0.0, oz, 2.5 * osc, 0.50, 2.5 * osc)
-            add_lol_rift_pine_tree(bm_wood, bm_fol_lit, bm_fol_shade, ox, 0.48, oz, scale=osc * 0.92, seed=oseed)
-        else:
-            add_chiseled_block(bm_stone_body, bm_stone_hi, ox, 0.0, oz, 2.5 * osc, 0.50, 2.5 * osc)
-            add_lol_handpainted_canopy_tree(
-                bm_wood, bm_fol_lit, bm_fol_shade,
-                ox, 0.48, oz, scale=osc * 0.92, seed=oseed,
-                bm_grass_lit=bm_fol_lit, bm_grass_shade=bm_fol_shade
-            )
+    # 1. East Apothecary & Windmill Shrine (23.2, -0.8): BODY SHAPE 1 (Ancient Hollow-Root Shrine Mother Tree)
+    add_tree_shape_elder_hollow_shrine(
+        bm_stone_body, bm_stone_hi, bm_wood, bm_blossom_lit, bm_blossom_shade,
+        bm_grass, bm_iron, bm_gold, bm_flw_white, bm_flw_pink,
+        23.2, 0.0, -0.8, scale=0.95, seed=104
+    )
 
-    # B. Summoner's Rift Layered Pine Clusters & Outskirts Spirit Blossom Shrine Dioramas
-    for px_t, pz_t, psc, pseed, p_kind in [
-        (-19.5, -7.5, 1.28, 108, "pine"),
-        (19.5, -7.5, 1.28, 109, "pine"),
-        (-13.5, -9.8, 1.15, 118, "pine"),
-        (13.5, -9.8, 1.15, 119, "pine"),
-        (-28.5, -11.5, 1.42, 110, "pine"),
-        (28.5, -11.5, 1.42, 111, "pine"),
-        (-15.8, -19.2, 1.02, 112, "blossom_diorama"),
-        (16.5, -19.5, 1.32, 113, "pine"),
-        (-22.5, -24.5, 1.38, 116, "pine"),
-        (21.5, -24.0, 1.02, 117, "blossom_diorama"),
-        (-20.0, -31.0, 1.45, 114, "pine"),
-        (20.0, -31.0, 1.45, 115, "pine"),
-    ]:
-        if p_kind == "pine":
-            add_lol_rift_pine_tree(bm_wood, bm_fol_lit, bm_fol_shade, px_t, -0.14, pz_t, scale=psc, seed=pseed)
-        else:
-            add_lol_spirit_blossom_diorama(
-                bm_stone_body, bm_stone_hi, bm_wood, bm_blossom_lit, bm_blossom_shade,
-                bm_fol_lit, bm_fol_shade, bm_iron, bm_gold, bm_flw_white, bm_flw_pink,
-                px_t, -0.14, pz_t, scale=psc, seed=pseed
-            )
+    # 2. West Tavern Canal Terrace (-25.8, 10.2): BODY SHAPE 2 (Low Windswept Horizontal S-Bend Bonsai Tree)
+    add_tree_shape_windswept_canal_bonsai(
+        bm_stone_body, bm_stone_hi, bm_wood, bm_blossom_lit, bm_blossom_shade, bm_grass,
+        -25.8, 0.0, 10.2, scale=0.96, seed=102
+    )
 
-    # C. Staggered Chiseled Border Stones, Moss-Draped Runic Rock Ledges & Meadow Grass Tufts
-    add_staggered_rift_border_stones(bm_stone_body, bm_stone_hi, -28.0, -2.5, -15.5, -2.5, step=1.5, seed=31, bm_fol_lit=bm_fol_lit, bm_fol_shade=bm_fol_shade)
-    add_staggered_rift_border_stones(bm_stone_body, bm_stone_hi, 15.5, -2.5, 28.0, -2.5, step=1.5, seed=41, bm_fol_lit=bm_fol_lit, bm_fol_shade=bm_fol_shade)
-    add_staggered_rift_border_stones(bm_stone_body, bm_stone_hi, -4.2, -14.8, -4.2, -34.0, step=1.5, seed=51, bm_fol_lit=bm_fol_lit, bm_fol_shade=bm_fol_shade)
-    add_staggered_rift_border_stones(bm_stone_body, bm_stone_hi, 4.2, -14.8, 4.2, -34.0, step=1.5, seed=61, bm_fol_lit=bm_fol_lit, bm_fol_shade=bm_fol_shade)
+    # 3. NW Rift Outskirts (-15.8, -18.8): BODY SHAPE 3 (Twin V-Forked Diverging Trunks Sakura)
+    add_tree_shape_twin_forked_sakura(
+        bm_wood, bm_blossom_lit, bm_blossom_shade, bm_grass,
+        -15.8, -0.14, -18.8, scale=1.04, seed=112
+    )
+
+    # 4. NE Rift Outskirts (21.5, -23.8): BODY SHAPE 4 (Tall Twisted Upright Willow-Blossom Umbrella)
+    add_tree_shape_twisted_upright_willow_blossom(
+        bm_wood, bm_blossom_lit, bm_blossom_shade, bm_grass,
+        21.5, -0.14, -23.8, scale=1.02, seed=117
+    )
+
+    # 5. Green Broadleaf Trees: BODY SHAPE 5 (Each with distinct limb count, lean direction, and rock ledge base!)
+    for ox, oy, oz, osc, limbs, lean_deg, oseed in [
+        (-25.5, 0.0,  23.5, 1.00, 3,  25.0, 103),
+        (16.5,  0.0,  27.5, 1.05, 5, -135.0, 107),
+        (-13.5, -0.14, -9.8, 1.08, 4,  60.0, 118),
+        (13.5,  -0.14, -9.8, 0.98, 3, -75.0, 119),
+    ]:
+        if oy >= 0.0:
+            add_chiseled_rift_rock_ledge(bm_stone_body, bm_stone_hi, ox, 0.0, oz, 1.75 * osc, 1.55 * osc, 0.36 * osc, rot_y_deg=lean_deg, seed=oseed, bm_grass=bm_grass)
+            add_tree_shape_multi_limb_emerald_oak(bm_wood, bm_fol_lit, bm_fol_shade, bm_grass, ox, 0.32 * osc, oz, scale=osc * 0.92, num_limbs=limbs, lean_angle_deg=lean_deg, seed=oseed)
+        else:
+            add_tree_shape_multi_limb_emerald_oak(bm_wood, bm_fol_lit, bm_fol_shade, bm_grass, ox, oy, oz, scale=osc, num_limbs=limbs, lean_angle_deg=lean_deg, seed=oseed)
+
+    # 6. Summoner's Rift Conifer / Pine Trees: BODY SHAPES 6 & 7 (4 distinct variants: spire, wide cedar, twin-stem fir, leaning ridge pine)
+    for px_t, py_t, pz_t, psc, pvar, pseed in [
+        (-25.8, 0.0,  -1.5,  1.02, 0, 101),
+        (24.8,  0.0,  23.5,  1.05, 1, 105),
+        (-16.5, 0.0,  27.5,  1.06, 2, 106),
+        (-19.5, -0.14, -7.5, 1.24, 3, 108),
+        (19.5,  -0.14, -7.5, 1.22, 0, 109),
+        (-28.5, -0.14, -11.5, 1.38, 1, 110),
+        (28.5,  -0.14, -11.5, 1.35, 2, 111),
+        (16.5,  -0.14, -19.5, 1.28, 3, 113),
+        (-22.5, -0.14, -24.5, 1.32, 0, 116),
+        (-20.0, -0.14, -31.0, 1.40, 2, 114),
+        (20.0,  -0.14, -31.0, 1.38, 1, 115),
+    ]:
+        if py_t >= 0.0:
+            add_chiseled_rift_rock_ledge(bm_stone_body, bm_stone_hi, px_t, 0.0, pz_t, 1.65 * psc, 1.45 * psc, 0.34 * psc, rot_y_deg=pseed * 19.0, seed=pseed, bm_grass=bm_grass)
+            add_tree_shape_varied_conifer_pine(bm_wood, bm_fol_lit, bm_fol_shade, bm_grass, px_t, 0.30 * psc, pz_t, scale=psc * 0.92, variant_idx=pvar, seed=pseed)
+        else:
+            add_tree_shape_varied_conifer_pine(bm_wood, bm_fol_lit, bm_fol_shade, bm_grass, px_t, py_t, pz_t, scale=psc, variant_idx=pvar, seed=pseed)
+
+    # C. Staggered Chiseled Border Stones, Moss-Draped Runic Rock Ledges & Alpha Grass Tufts
+    add_staggered_rift_border_stones(bm_stone_body, bm_stone_hi, -28.0, -2.5, -15.5, -2.5, step=1.5, seed=31, bm_grass=bm_grass)
+    add_staggered_rift_border_stones(bm_stone_body, bm_stone_hi, 15.5, -2.5, 28.0, -2.5, step=1.5, seed=41, bm_grass=bm_grass)
+    add_staggered_rift_border_stones(bm_stone_body, bm_stone_hi, -4.2, -14.8, -4.2, -34.0, step=1.5, seed=51, bm_grass=bm_grass)
+    add_staggered_rift_border_stones(bm_stone_body, bm_stone_hi, 4.2, -14.8, 4.2, -34.0, step=1.5, seed=61, bm_grass=bm_grass)
 
     for rx, rz, rw, rd, rh, rrot, rseed in [
         (-16.5, -6.5, 3.6, 2.5, 1.35, 18.0, 101),
@@ -1654,7 +1500,7 @@ def build_lorencia_lol_city_v95():
         add_chiseled_rift_rock_ledge(
             bm_stone_body, bm_stone_hi, rx, -0.14, rz, rw, rd, rh,
             rot_y_deg=rrot, seed=rseed,
-            bm_fol_lit=bm_fol_lit, bm_fol_shade=bm_fol_shade, bm_rune=bm_water
+            bm_grass=bm_grass, bm_rune=bm_water
         )
 
     rng_grass = random.Random(888)
@@ -1664,10 +1510,10 @@ def build_lorencia_lol_city_v95():
         (-14.5, -15.0), (14.5, -15.0), (-15.0, -24.0), (15.0, -24.0),
         (-6.8, -31.0), (6.8, -31.0),
     ]):
-        add_lol_grass_tuft_cluster(
-            bm_fol_lit, bm_fol_shade,
+        add_lol_alpha_grass_tuft(
+            bm_grass,
             gx_c + rng_grass.uniform(-0.4, 0.4), -0.14, gz_c + rng_grass.uniform(-0.4, 0.4),
-            scale=rng_grass.uniform(1.05, 1.38), n_blades=8, seed=900 + g_idx
+            scale=rng_grass.uniform(1.05, 1.38), seed=900 + g_idx
         )
 
     # ═══════════════════════════════════════════════════════════════════
@@ -1739,10 +1585,11 @@ def build_lorencia_lol_city_v95():
     make_mesh_object("Lorencia_Banners", bm_banner, mat_banner, smooth_shading=False, top_hi=1.06, crev_dark=0.94)
     make_mesh_object("Lorencia_Water", bm_water, mat_water, smooth_shading=True, top_hi=1.0, crev_dark=1.0)
     make_mesh_object("Lorencia_Embers", bm_ember, mat_ember, smooth_shading=True, top_hi=1.0, crev_dark=1.0)
-    make_mesh_object("Lorencia_Foliage_Lit", bm_fol_lit, mat_fol_lit, smooth_shading=True, is_foliage=True, is_blossom=False, is_lit_layer=True)
-    make_mesh_object("Lorencia_Foliage_Shade", bm_fol_shade, mat_fol_shade, smooth_shading=True, is_foliage=True, is_blossom=False, is_lit_layer=False)
-    make_mesh_object("Lorencia_Foliage_Blossom_Lit", bm_blossom_lit, mat_blossom_lit, smooth_shading=True, is_foliage=True, is_blossom=True, is_lit_layer=True)
-    make_mesh_object("Lorencia_Foliage_Blossom_Shade", bm_blossom_shade, mat_blossom_shade, smooth_shading=True, is_foliage=True, is_blossom=True, is_lit_layer=False)
+    make_mesh_object("Lorencia_Foliage_Lit", bm_fol_lit, mat_fol_lit, smooth_shading=True, is_foliage=True)
+    make_mesh_object("Lorencia_Foliage_Shade", bm_fol_shade, mat_fol_shade, smooth_shading=True, is_foliage=True)
+    make_mesh_object("Lorencia_Foliage_Blossom_Lit", bm_blossom_lit, mat_blossom_lit, smooth_shading=True, is_foliage=True)
+    make_mesh_object("Lorencia_Foliage_Blossom_Shade", bm_blossom_shade, mat_blossom_shade, smooth_shading=True, is_foliage=True)
+    make_mesh_object("Lorencia_Foliage_Grass_Cards", bm_grass, mat_grass_cards, smooth_shading=True, is_foliage=True)
     make_mesh_object("Lorencia_Flowers_Purple", bm_flw_purple, mat_flw_purple, smooth_shading=True)
     make_mesh_object("Lorencia_Flowers_Pink", bm_flw_pink, mat_flw_pink, smooth_shading=True)
     make_mesh_object("Lorencia_Flowers_White", bm_flw_white, mat_flw_white, smooth_shading=True)
@@ -1761,7 +1608,7 @@ def build_lorencia_lol_city_v95():
         export_apply=True,
         export_materials="EXPORT",
     )
-    print("Exported LoL / Spirit Blossom Diorama Lorencia City v9.5:", blend_path, "->", glb_path)
+    print("Exported LoL / Spirit Blossom Alpha-Card Lorencia City v10:", blend_path, "->", glb_path)
 
 
-build_lorencia_lol_city_v95()
+build_lorencia_lol_city_v10()

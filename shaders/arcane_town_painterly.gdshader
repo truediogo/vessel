@@ -4,9 +4,8 @@ render_mode cull_back, depth_draw_opaque, specular_disabled;
 // Point 2 & Point 4 of the League of Legends Godot Pipeline:
 // - Hand-painted diffuse texture + Blender-baked vertex edge highlights & crevice AO (COLOR.rgb)
 //   do the primary lighting work.
-// - Completely matte (specular_disabled, ROUGHNESS = 0.92, SPECULAR = 0.0) with soft directional
-//   lighting and zero fake self-emission washout so cast shadows and SSAO remain crisp.
-// - Region color identity: gameplay areas stay warm, saturated, and slightly brighter than outer borders.
+// - Dual-scale rotated UV blending on the large meadow terrain (`world_pos.y < -0.05`) completely
+//   eliminates repeating tile grid patterns across the 160m Summoner's Rift field.
 
 uniform sampler2D albedo_texture : source_color, filter_linear_mipmap, repeat_enable;
 uniform bool use_texture = false;
@@ -27,12 +26,17 @@ void vertex() {
 void fragment() {
 	vec3 col = albedo_color.rgb;
 	if (use_texture) {
-		col *= texture(albedo_texture, UV).rgb;
+		vec3 t1 = texture(albedo_texture, UV).rgb;
+		if (world_pos.y < -0.05) {
+			vec2 uv_macro = vec2(UV.x * 0.27 - UV.y * 0.19, UV.x * 0.19 + UV.y * 0.27) + vec2(0.37, 0.61);
+			vec3 t2 = texture(albedo_texture, uv_macro).rgb;
+			col *= mix(t1, t2, 0.45);
+		} else {
+			col *= t1;
+		}
 	}
-	// Apply Blender-baked top-edge highlights and dark crevice AO without blowing out the texture
 	col *= mix(vec3(1.0), v_baked_paint, 0.65);
 
-	// Point 4: Gameplay areas (plaza & northern lane center) stay slightly brighter than outer borders
 	float dist_from_lane = min(
 		length(world_pos.xz - vec2(0.0, 11.5)) / 30.0,
 		abs(world_pos.x) / 22.0
